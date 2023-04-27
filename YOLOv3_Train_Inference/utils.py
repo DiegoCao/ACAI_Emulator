@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 
+
 def coord_trans(bbox, w_pixel, h_pixel, w_amap=7, h_amap=7, mode='a2p'):
     """
     Coordinate transformation function. It converts the box coordinate from
@@ -25,14 +26,14 @@ def coord_trans(bbox, w_pixel, h_pixel, w_amap=7, h_amap=7, mode='a2p'):
     assert mode in ('p2a', 'a2p'), 'invalid coordinate transformation mode!'
     assert bbox.shape[-1] >= 4, 'the transformation is applied to the first 4 values of dim -1'
 
-    if bbox.shape[0] == 0: # corner cases
+    if bbox.shape[0] == 0:  # corner cases
         return bbox
 
     resized_bbox = bbox.clone()
     # could still work if the first dim of bbox is not batch size
     # in that case, w_pixel and h_pixel will be scalars
     resized_bbox = resized_bbox.view(bbox.shape[0], -1, bbox.shape[-1])
-    invalid_bbox_mask = (resized_bbox == -1) # indicating invalid bbox
+    invalid_bbox_mask = (resized_bbox == -1)  # indicating invalid bbox
 
     if mode == 'p2a':
         # pixel to activation
@@ -50,6 +51,7 @@ def coord_trans(bbox, w_pixel, h_pixel, w_amap=7, h_amap=7, mode='a2p'):
     resized_bbox.masked_fill_(invalid_bbox_mask, -1)
     resized_bbox.resize_as_(bbox)
     return resized_bbox
+
 
 def data_visualizer(img, idx_to_class, bbox=None, pred=None):
     """
@@ -72,24 +74,24 @@ def data_visualizer(img, idx_to_class, bbox=None, pred=None):
         for bbox_idx in range(bbox.shape[0]):
             one_bbox = bbox[bbox_idx][:4]
             cv2.rectangle(img_copy, (int(one_bbox[0]), int(one_bbox[1])), (int(one_bbox[2]),
-                      int(one_bbox[3])), (255, 0, 0), 2)
-            if bbox.shape[1] > 4: # if class info provided
+                                                                           int(one_bbox[3])), (255, 0, 0), 2)
+            if bbox.shape[1] > 4:  # if class info provided
                 obj_cls = idx_to_class[bbox[bbox_idx][4].item()]
-                cv2.putText(img_copy, '%s' % (obj_cls),
-                          (one_bbox[0], one_bbox[1]+15),
-                          cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255), thickness=1)
+                cv2.putText(img_copy, '%s' % obj_cls,
+                            (one_bbox[0], one_bbox[1] + 15),
+                            cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255), thickness=1)
 
     if pred is not None:
         for bbox_idx in range(pred.shape[0]):
             one_bbox = pred[bbox_idx][:4]
             cv2.rectangle(img_copy, (int(one_bbox[0]), int(one_bbox[1])), (int(one_bbox[2]),
-                      int(one_bbox[3])), (0, 255, 0), 2)
+                                                                           int(one_bbox[3])), (0, 255, 0), 2)
 
-            if pred.shape[1] > 4: # if class and conf score info provided
+            if pred.shape[1] > 4:  # if class and conf score info provided
                 obj_cls = idx_to_class[pred[bbox_idx][4].item()]
                 conf_score = pred[bbox_idx][5].item()
                 cv2.putText(img_copy, '%s, %.2f' % (obj_cls, conf_score),
-                            (one_bbox[0], one_bbox[1]+15),
+                            (one_bbox[0], one_bbox[1] + 15),
                             cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255), thickness=1)
 
     plt.imshow(img_copy)

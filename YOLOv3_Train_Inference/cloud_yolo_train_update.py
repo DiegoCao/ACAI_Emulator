@@ -78,6 +78,7 @@ while True:
     loss_his = DetectionRetrain(yoloDetector, retrain_data_batch, learning_rate=lr,
                                 num_epochs=retrain_num_epochs, device_type=device)
     print("Retrain Round " + str(retrain_counter) + " finished with loss " + str(sum(loss_his) / len(loss_his)))
+    retrain_counter += 1
     torch.save(yoloDetector.state_dict(), updated_model_path)
     print("Model saved in ", updated_model_path)
     serverSendWeight(updated_model_path)

@@ -1,6 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
+import torch
+
+# data type and device for torch.tensor
+# unpack as argument to torch functions, like so: **to_float
+to_float = {'dtype': torch.float, 'device': 'cpu'}
+to_float_cuda = {'dtype': torch.float, 'device': 'cuda'}
+to_double = {'dtype': torch.double, 'device': 'cpu'}
+to_double_cuda = {'dtype': torch.double, 'device': 'cuda'}
+to_long = {'dtype': torch.long, 'device': 'cpu'}
+to_long_cuda = {'dtype': torch.long, 'device': 'cuda'}
 
 
 def coord_trans(bbox, w_pixel, h_pixel, w_amap=7, h_amap=7, mode='a2p'):

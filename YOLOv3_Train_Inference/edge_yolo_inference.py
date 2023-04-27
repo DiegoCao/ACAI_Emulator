@@ -8,7 +8,7 @@ from dataset import *
 from utils import *
 
 def comm_with_cloud(samples):
-    return 'yolo_detector.pt'
+    return 'yolo_pretrained_detector.pt'
 
 
 # get dataset
@@ -18,7 +18,7 @@ inference_loader = pascal_voc2007_loader(inference_dataset, 1)
 
 # load pre-trained model
 detector = SingleStageDetector()
-detector.load_state_dict(torch.load('yolo_detector.pt', map_location=torch.device('cpu')))
+detector.load_state_dict(torch.load('yolo_pretrained_detector.pt', map_location=torch.device('cpu')))
 
 # inference images
 thresh=0.8
@@ -69,19 +69,19 @@ for iter_num, data_batch in enumerate(inference_loader):
             data_visualizer(img, idx_to_class, boxes[idx][:valid_box], resized_proposals)
         
         # check if the sample is incorrect
-        detected_classes = [idx_to_class[b[4].item()] for b in boxes[idx][:valid_box]].sort()
-        gt_classes = [idx_to_class[b[4].item()] for b in resized_proposals].sort()
-        if detected_classes != gt_classes:
-            incorrect_samples.append((images[idx], boxes[idx], w_batch[idx], h_batch[idx], img_ids[idx]))
+        # detected_classes = [idx_to_class[b[4].item()] for b in boxes[idx][:valid_box]].sort()
+        # gt_classes = [idx_to_class[b[4].item()] for b in resized_proposals].sort()
+        # if detected_classes != gt_classes:
+        #     incorrect_samples.append((images[idx], boxes[idx], w_batch[idx], h_batch[idx], img_ids[idx]))
 
             # communicate with cloud to get new model checkpoint
-            if len(incorrect_samples) == incorrect_thresh:
-                new_model_pt = comm_with_cloud(incorrect_samples)
-                detector.load_state_dict(torch.load(new_model_pt, map_location=torch.device('cpu')))
-                incorrect_samples = []
+            # if len(incorrect_samples) == incorrect_thresh:
+            #     new_model_pt = comm_with_cloud(incorrect_samples)
+            #     detector.load_state_dict(torch.load(new_model_pt, map_location=torch.device('cpu')))
+            #     incorrect_samples = []
 
     # sleep between inference requests
-    time.sleep(random.randint(1, 10) / 10)
+    # time.sleep(random.randint(1, 10) / 10)
 
 end_t = time.time()
 print('Total inference time: {:.1f}s'.format(end_t-start_t))

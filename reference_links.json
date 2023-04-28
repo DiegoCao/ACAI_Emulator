@@ -1,4 +1,7 @@
 {
     "Send Image over sockets": "https://stackoverflow.com/questions/42458475/sending-image-over-sockets-only-in-python-image-can-not-be-open",
-    "Onnx Inference": "https://github.com/zxcv1884/yolov3-onnx-inference/blob/main/README.md"
+    "Onnx Inference": "https://github.com/zxcv1884/yolov3-onnx-inference/blob/main/README.md",
+    "Multiple Threading Inference": "https://github.com/zxcv1884/yolov3-onnx-inference/blob/main/README.md",
+    "YOLOv3 Utils": "https://github.com/deepvision-class/starter-code",
+    "YOLOv3 Implementation": "https://www.eecs.umich.edu/courses/eecs442-ahowens/fa20"
 }

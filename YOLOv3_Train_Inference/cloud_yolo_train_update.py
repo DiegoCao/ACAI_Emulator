@@ -7,7 +7,7 @@ import socket
 from torch import optim
 import time
 
-lr = 5e-2
+lr = 5e-4
 retrain_num_epochs = 1
 retrain_batch_size = 10
 retrain_counter = 0

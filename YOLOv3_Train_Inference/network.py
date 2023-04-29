@@ -1,9 +1,11 @@
 import pickle
 
-def encodeBytes(filepath:str):
+
+def encodeBytes(filepath: str):
     with open(filepath, 'rb') as fp:
         obj = fp.read()
         return obj
+
 
 def tensorToMessage(torchtensor):
     t_obj = pickle.dumps(torchtensor)
@@ -23,13 +25,13 @@ def modelToMessage(modelpath):
 
 
 def send_weights(socket, weightbytes):
-    print("start send weights with length ", len(weightbytes))
+    # print("start send weights with length ", len(weightbytes))
     socket.sendall(weightbytes)
-    print("send weights done")
+    # print("send weights done")
 
 
 def receive_imgs(s):
-    print("start receiveing images")
+    # print("start receiveing images")
     HEADERSIZE = 10
     while True:
         full_msg = b''
@@ -37,20 +39,20 @@ def receive_imgs(s):
         while True:
             msg = s.recv(1024)
             if new_msg:
-                print("new msg len:",msg[:HEADERSIZE])
+                # print("new msg len:", msg[:HEADERSIZE])
                 msglen = int(msg[:HEADERSIZE])
                 new_msg = False
             # print(f"full message length: {msglen}")
             full_msg += msg
             # print("the length of fullmessage is ", len(full_msg)) # need to get wait
-            if len(full_msg)-HEADERSIZE == msglen:
+            if len(full_msg) - HEADERSIZE == msglen:
                 obj = pickle.loads(full_msg[HEADERSIZE:])
                 # recv_wt = open(file_write_path, "wb")
                 return obj
-            
+
 
 def receive_weights(s, newpath):
-    print("start receiveing weights")
+    # print("start receiveing weights")
     HEADERSIZE = 10
     while True:
         full_msg = b''
@@ -58,11 +60,11 @@ def receive_weights(s, newpath):
         while True:
             msg = s.recv(1024)
             if new_msg:
-                print("new msg len:",msg[:HEADERSIZE])
+                # print("new msg len:", msg[:HEADERSIZE])
                 msglen = int(msg[:HEADERSIZE])
                 new_msg = False
             full_msg += msg
-            if len(full_msg)-HEADERSIZE == msglen:
+            if len(full_msg) - HEADERSIZE == msglen:
                 weight_bytes = full_msg[HEADERSIZE:]
                 with open(newpath, "wb+") as fp:
                     fp.write(weight_bytes)

@@ -27,31 +27,10 @@ def serverReceiveImg():
     # returns batch img and annotation, assume img already normalized
     while True:
         clientsocket, address = s.accept()
-        lis = receive_imgs(clientsocket)
+        samples = receive_imgs(clientsocket)
         break
     # print("start processing")
-    image_batch_lis = [item[0] for item in lis]
-    box_batch_lis = [item[1] for item in lis]
-    w_batch_lis = [item[2].item() for item in lis]
-    h_batch_lis = [item[3].item() for item in lis]
-    imgid_batch_lis = [item[4] for item in lis]
-    image_batch = torch.stack(image_batch_lis, 0)
-    box_batch = torch.stack(box_batch_lis, 0)
-    print(image_batch_lis[0].shape)
-    print(box_batch_lis[0].shape)
-
-    w_batch = torch.tensor(w_batch_lis) #
-    h_batch = torch.tensor(h_batch_lis)
-    img_id_list = imgid_batch_lis
-    print("img batch shape", image_batch.shape)
-    print("box batch shape", box_batch.shape)
-    print("w_batch shape", w_batch.shape)
-    print("h_batch shape", h_batch.shape)
-    # image_batch = torch.zeros(retrain_batch_size, 3, 224, 224)
-    # box_batch = torch.zeros(retrain_batch_size, 6, 5)
-    # w_batch = torch.zeros(retrain_batch_size)
-    # h_batch = torch.zeros(retrain_batch_size)
-    # img_id_list = torch.zeros(retrain_batch_size)
+    image_batch, box_batch, w_batch, h_batch, img_id_list = samples
     return image_batch, box_batch, w_batch, h_batch, img_id_list
 
 

@@ -21,15 +21,20 @@ s.bind((socket.gethostname(), 1234))
 s.listen(5)
 clientsocket = None
 
+sock_established = False
 
 def serverReceiveImg():
     # should be a BLOCKING function if not enough image received
     # returns batch img and annotation, assume img already normalized
-    while True:
-        global clientsocket
+    global sock_established
+    global clientsocket
+    while True and not sock_established:
+        print("Try to accept connection!")
+        sock_established = True
         clientsocket, address = s.accept()
-        samples = receive_imgs(clientsocket)
         break
+    samples = receive_imgs(clientsocket)
+
     # print("start processing")
     image_batch, box_batch, w_batch, h_batch, img_id_list = samples
     return image_batch, box_batch, w_batch, h_batch, img_id_list

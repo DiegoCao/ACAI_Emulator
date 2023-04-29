@@ -48,6 +48,7 @@ def receive_imgs(s):
                 # recv_wt = open(file_write_path, "wb")
                 return obj
             
+
 def receive_weights(s, newpath):
     print("start receiveing weights")
     HEADERSIZE = 10

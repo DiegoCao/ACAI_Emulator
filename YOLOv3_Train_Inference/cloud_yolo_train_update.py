@@ -23,19 +23,19 @@ clientsocket = None
 
 sock_established = False
 
+
 def serverReceiveImg():
     # should be a BLOCKING function if not enough image received
     # returns batch img and annotation, assume img already normalized
     global sock_established
     global clientsocket
     while True and not sock_established:
-        print("Try to accept connection!")
+        # print("Try to accept connection!")
         sock_established = True
         clientsocket, address = s.accept()
         break
     samples = receive_imgs(clientsocket)
 
-    # print("start processing")
     image_batch, box_batch, w_batch, h_batch, img_id_list = samples
     return image_batch, box_batch, w_batch, h_batch, img_id_list
 
@@ -78,7 +78,7 @@ def DetectionRetrain(detector, data_batch, learning_rate=3e-3,
 
         end_t = time.time()
         print('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(
-            i, num_epochs, loss.item(), end_t - start_t))
+            i + 1, num_epochs, loss.item(), end_t - start_t))
 
         lr_scheduler.step()
 
@@ -89,14 +89,17 @@ def DetectionRetrain(detector, data_batch, learning_rate=3e-3,
 yoloDetector = SingleStageDetector()
 yoloDetector.load_state_dict(torch.load('yolo_detector.pt', map_location=torch.device('cpu')))
 print("Model Loaded")
+
 # start listen to the edge, retrain and send back updated model as necessary
 while True:
+    print("--------------------------------------------")
     retrain_data_batch = serverReceiveImg()
+    print("INFO: Incorrect image batch received from the edge")
     loss_his = DetectionRetrain(yoloDetector, retrain_data_batch, learning_rate=lr,
                                 num_epochs=retrain_num_epochs, device_type=device)
-    print("Retrain Round " + str(retrain_counter) + " finished with loss " + str(sum(loss_his) / len(loss_his)))
+    print("INFO: Retrain Round " + str(retrain_counter) + " finished")
     retrain_counter += 1
     torch.save(yoloDetector.state_dict(), updated_model_path)
-    print("Model saved in ", updated_model_path)
+    print("INFO: Model saved in ", updated_model_path)
     serverSendWeight(updated_model_path)
-    print("Model params sent to edge")
+    print("INFO: Model params sent to edge")

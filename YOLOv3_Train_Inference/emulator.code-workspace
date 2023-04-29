@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "emulator",
+			"path": ".."
+		},
+		{
+			"name": "tiny-yolov3-11",
+			"path": "../../../Downloads/tiny-yolov3-11"
+		}
+	],
+	"settings": {}
+}

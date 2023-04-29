@@ -1,7 +1,9 @@
 # Created by Churong Ji at 4/27/23
 from model import *
 from utils import *
+from network import *
 import torch
+import socket
 from torch import optim
 import time
 
@@ -13,21 +15,51 @@ retrain_counter = 0
 device = 'cpu'
 updated_model_path = 'yolo_updated_detector.pt'
 
+# define the server socket locally
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((socket.gethostname(), 1234))
+s.listen(5)
+clientsocket = None
+
 
 def serverReceiveImg():
     # should be a BLOCKING function if not enough image received
     # returns batch img and annotation, assume img already normalized
-    image_batch = torch.zeros(retrain_batch_size, 3, 224, 224)
-    box_batch = torch.zeros(retrain_batch_size, 6, 5)
-    w_batch = torch.zeros(retrain_batch_size)
-    h_batch = torch.zeros(retrain_batch_size)
-    img_id_list = torch.zeros(retrain_batch_size)
+    while True:
+        clientsocket, address = s.accept()
+        lis = receive_imgs(clientsocket)
+        break
+    # print("start processing")
+    image_batch_lis = [item[0] for item in lis]
+    box_batch_lis = [item[1] for item in lis]
+    w_batch_lis = [item[2].item() for item in lis]
+    h_batch_lis = [item[3].item() for item in lis]
+    imgid_batch_lis = [item[4] for item in lis]
+    image_batch = torch.cat(image_batch_lis, 0)
+    box_batch = torch.cat(box_batch_lis)
+    print(image_batch_lis[0].shape)
+    print(box_batch_lis[0].shape)
+
+    w_batch = torch.tensor(w_batch_lis)
+    h_batch = torch.tensor(h_batch_lis)
+    img_id_list = imgid_batch_lis
+    print("img batch shape", image_batch.shape)
+    print("box batch shape", box_batch.shape)
+    print("w_batch shape", w_batch.shape)
+    print("h_batch shape", h_batch.shape)
+    # image_batch = torch.zeros(retrain_batch_size, 3, 224, 224)
+    # box_batch = torch.zeros(retrain_batch_size, 6, 5)
+    # w_batch = torch.zeros(retrain_batch_size)
+    # h_batch = torch.zeros(retrain_batch_size)
+    # img_id_list = torch.zeros(retrain_batch_size)
     return image_batch, box_batch, w_batch, h_batch, img_id_list
 
 
 def serverSendWeight(model_path):
     # send updated model parameters to the edge
-    return None
+    msg = modelToMessage(model_path)
+    send_weights(s, msg)
+    return True
 
 
 def DetectionRetrain(detector, data_batch, learning_rate=3e-3,
@@ -71,7 +103,7 @@ def DetectionRetrain(detector, data_batch, learning_rate=3e-3,
 # load pretrained model
 yoloDetector = SingleStageDetector()
 yoloDetector.load_state_dict(torch.load('yolo_detector.pt', map_location=torch.device('cpu')))
-
+print("Model Loaded")
 # start listen to the edge, retrain and send back updated model as necessary
 while True:
     retrain_data_batch = serverReceiveImg()

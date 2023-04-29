@@ -26,6 +26,7 @@ def serverReceiveImg():
     # should be a BLOCKING function if not enough image received
     # returns batch img and annotation, assume img already normalized
     while True:
+        global clientsocket
         clientsocket, address = s.accept()
         samples = receive_imgs(clientsocket)
         break
@@ -37,7 +38,7 @@ def serverReceiveImg():
 def serverSendWeight(model_path):
     # send updated model parameters to the edge
     msg = modelToMessage(model_path)
-    send_weights(s, msg)
+    send_weights(clientsocket, msg)
     return True
 
 

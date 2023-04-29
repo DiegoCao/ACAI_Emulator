@@ -21,8 +21,9 @@ gt_dir = 'mAP/input/ground-truth'
 
 send_buffer = []
 
-# s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# s.connect((socket.gethostname(), 1234))
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((socket.gethostname(), 1234))
+s.settimeout(10.0)
 
 def comm_with_cloud(samples):
     return 'yolo_pretrained_detector.pt'
@@ -78,9 +79,9 @@ def prepare_send_samples():
 
 def update_model():
     send_samples = prepare_send_samples()
-    # bytes_send = tensorToMessage(send_samples)
-    # s.sendall(bytes_send)  # send all bytes 
-    # weight_bytes = receive_weights(s)
+    bytes_send = tensorToMessage(send_samples)
+    s.sendall(bytes_send)  # send all bytes 
+    weight_bytes = receive_weights(s)
     # TODO: add save pt with receive byte weights
         
     new_model_pt = comm_with_cloud(send_samples)

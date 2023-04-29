@@ -23,7 +23,7 @@ def modelToMessage(modelpath):
 
 
 def send_weights(socket, weightbytes):
-    print("start receiving weights")
+    print("start send weights with length ", len(weightbytes))
     socket.sendall(weightbytes)
     print("send weights done")
 
@@ -49,7 +49,7 @@ def receive_imgs(s):
                 # recv_wt = open(file_write_path, "wb")
                 return obj
             
-def receive_weights(s):
+def receive_weights(s, newpath):
     print("start receiveing weights")
     HEADERSIZE = 10
     while True:
@@ -64,4 +64,6 @@ def receive_weights(s):
             full_msg += msg
             if len(full_msg)-HEADERSIZE == msglen:
                 weight_bytes = full_msg[HEADERSIZE:]
+                with open(newpath, "rb") as fp:
+                    fp.write(weight_bytes)
                 return weight_bytes

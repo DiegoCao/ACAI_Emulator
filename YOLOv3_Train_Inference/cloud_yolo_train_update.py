@@ -35,12 +35,12 @@ def serverReceiveImg():
     w_batch_lis = [item[2].item() for item in lis]
     h_batch_lis = [item[3].item() for item in lis]
     imgid_batch_lis = [item[4] for item in lis]
-    image_batch = torch.cat(image_batch_lis, 0)
-    box_batch = torch.cat(box_batch_lis)
+    image_batch = torch.stack(image_batch_lis, 0)
+    box_batch = torch.stack(box_batch_lis, 0)
     print(image_batch_lis[0].shape)
     print(box_batch_lis[0].shape)
 
-    w_batch = torch.tensor(w_batch_lis)
+    w_batch = torch.tensor(w_batch_lis) #
     h_batch = torch.tensor(h_batch_lis)
     img_id_list = imgid_batch_lis
     print("img batch shape", image_batch.shape)

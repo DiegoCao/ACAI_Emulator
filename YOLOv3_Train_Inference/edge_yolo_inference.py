@@ -18,15 +18,14 @@ incorrect_thresh = 10
 output_dir='mAP/input'
 det_dir = 'mAP/input/detection-results'
 gt_dir = 'mAP/input/ground-truth'
+model_pretrained_path = 'yolo_pretrained_detector.pt'
+model_updated_path = 'yolo_updated_edge_detector.pt'
 
 send_buffer = []
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((socket.gethostname(), 1234))
 s.settimeout(10.0)
-
-def comm_with_cloud(samples):
-    return 'yolo_pretrained_detector.pt'
 
 def get_data_loader():
     # get dataset
@@ -68,11 +67,11 @@ def prepare_send_samples():
     w_batch = torch.tensor(w_batch_lis)
     h_batch = torch.tensor(h_batch_lis)
 
-    print("img batch shape: ", image_batch.shape)
-    print("box batch shape: ", box_batch.shape)
-    print("w_batch shape: ", w_batch.shape)
-    print("h_batch shape: ", h_batch.shape)
-    print("img_id length: ", len(img_id_list))
+    # print("img batch shape: ", image_batch.shape)
+    # print("box batch shape: ", box_batch.shape)
+    # print("w_batch shape: ", w_batch.shape)
+    # print("h_batch shape: ", h_batch.shape)
+    # print("img_id length: ", len(img_id_list))
     send_samples = (image_batch, box_batch, w_batch, h_batch, img_id_list)
     send_buffer = []
     return send_samples
@@ -81,13 +80,9 @@ def update_model():
     send_samples = prepare_send_samples()
     bytes_send = tensorToMessage(send_samples)
     s.sendall(bytes_send)  # send all bytes 
-    weight_bytes = receive_weights(s)
-    # TODO: add save pt with receive byte weights
-        
-    new_model_pt = comm_with_cloud(send_samples)
+    receive_weights(s, model_updated_path)
     new_detector = SingleStageDetector()
-    new_detector.load_state_dict(torch.load(new_model_pt, map_location=torch.device('cpu')))
-    
+    new_detector.load_state_dict(torch.load(model_updated_path, map_location=torch.device('cpu')))
     return new_detector
 
 def inference():
@@ -103,7 +98,7 @@ def inference():
 
     # load pre-trained model
     detector = SingleStageDetector()
-    detector.load_state_dict(torch.load('yolo_pretrained_detector.pt', map_location=torch.device('cpu')))
+    detector.load_state_dict(torch.load(model_pretrained_path, map_location=torch.device('cpu')))
     detector.eval()
 
     # start inference
@@ -137,9 +132,9 @@ def inference():
 
         # communicate with cloud to get new model checkpoint
         if len(send_buffer) == incorrect_thresh:
-            print("need to send message!")
+            print("INFO: Reach threshold, need to communicate with cloud!")
             detector = update_model()
-
+            print("INFO: Update model at edge!")
         # sleep between inference requests
         time.sleep(random.randint(1, 10) / 10)
 

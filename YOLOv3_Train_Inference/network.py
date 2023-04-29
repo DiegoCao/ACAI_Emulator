@@ -45,7 +45,6 @@ def receive_imgs(s):
             # print("the length of fullmessage is ", len(full_msg)) # need to get wait
             if len(full_msg)-HEADERSIZE == msglen:
                 obj = pickle.loads(full_msg[HEADERSIZE:])
-                print(obj)
                 # recv_wt = open(file_write_path, "wb")
                 return obj
             
@@ -64,6 +63,6 @@ def receive_weights(s, newpath):
             full_msg += msg
             if len(full_msg)-HEADERSIZE == msglen:
                 weight_bytes = full_msg[HEADERSIZE:]
-                with open(newpath, "rb") as fp:
+                with open(newpath, "wb+") as fp:
                     fp.write(weight_bytes)
                 return weight_bytes

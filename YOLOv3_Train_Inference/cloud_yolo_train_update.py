@@ -7,7 +7,7 @@ import socket
 from torch import optim
 import time
 
-lr = 5e-4
+lr = 1e-3
 retrain_num_epochs = 1
 retrain_batch_size = 10
 retrain_counter = 0
@@ -60,7 +60,7 @@ def DetectionRetrain(detector, data_batch, learning_rate=3e-3,
                                                lambda epoch: lr_decay ** epoch)
 
     loss_history = []
-    detector.train()
+    # detector.train()
     for i in range(num_epochs):
         start_t = time.time()
 
@@ -85,21 +85,23 @@ def DetectionRetrain(detector, data_batch, learning_rate=3e-3,
     return loss_history
 
 
-# load pretrained model
-yoloDetector = SingleStageDetector()
-yoloDetector.load_state_dict(torch.load('yolo_detector.pt', map_location=torch.device('cpu')))
-print("Model Loaded")
+if __name__ == "__main__":
+    # load pretrained model
+    yoloDetector = SingleStageDetector()
+    yoloDetector.load_state_dict(torch.load('yolo_detector.pt', map_location=torch.device('cpu')))
+    print("Model Loaded")
 
-# start listen to the edge, retrain and send back updated model as necessary
-while True:
-    print("--------------------------------------------")
-    retrain_data_batch = serverReceiveImg()
-    print("INFO: Incorrect image batch received from the edge")
-    loss_his = DetectionRetrain(yoloDetector, retrain_data_batch, learning_rate=lr,
-                                num_epochs=retrain_num_epochs, device_type=device)
-    print("INFO: Retrain Round " + str(retrain_counter) + " finished")
-    retrain_counter += 1
-    torch.save(yoloDetector.state_dict(), updated_model_path)
-    print("INFO: Model saved in ", updated_model_path)
-    serverSendWeight(updated_model_path)
-    print("INFO: Model params sent to edge")
+    # start listen to the edge, retrain and send back updated model as necessary
+    yoloDetector.train()
+    while True:
+        print("--------------------------------------------")
+        retrain_data_batch = serverReceiveImg()
+        print("INFO: Incorrect image batch received from the edge")
+        loss_his = DetectionRetrain(yoloDetector, retrain_data_batch, learning_rate=lr,
+                                    num_epochs=retrain_num_epochs, device_type=device)
+        print("INFO: Retrain Round " + str(retrain_counter) + " finished")
+        retrain_counter += 1
+        torch.save(yoloDetector.state_dict(), updated_model_path)
+        print("INFO: Model saved in ", updated_model_path)
+        serverSendWeight(updated_model_path)
+        print("INFO: Model params sent to edge")

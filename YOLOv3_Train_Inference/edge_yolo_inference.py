@@ -11,11 +11,11 @@ from utils import *
 from network import *
 
 # inference images
-thresh=0.8
-nms_thresh=0.3
+thresh = 0.8
+nms_thresh = 0.3
 incorrect_thresh = 10
 
-output_dir='mAP/input'
+output_dir = 'mAP/input'
 det_dir = 'mAP/input/detection-results'
 gt_dir = 'mAP/input/ground-truth'
 model_pretrained_path = 'yolo_pretrained_detector.pt'
@@ -30,11 +30,13 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((socket.gethostname(), 1234))
 s.settimeout(10.0)
 
+
 def get_data_loader(batch_size):
     inference_loader = pascal_voc2007_loader(inference_dataset, batch_size)
     return inference_loader
 
-def check_predictions(boxes, valid_box, resized_proposals, idx, images, w_batch, h_batch, img_ids):
+
+def check_predictions(boxes, valid_box, resized_proposals, idx):
     detected_classes = [idx_to_class[b[4].item()] for b in boxes[idx][:valid_box]]
     detected_classes.sort()
     gt_classes = [idx_to_class[b[4].item()] for b in resized_proposals]
@@ -42,6 +44,7 @@ def check_predictions(boxes, valid_box, resized_proposals, idx, images, w_batch,
     if detected_classes != gt_classes:
         return False
     return True
+
 
 def prepare_send_samples():
     global send_buffer
@@ -73,17 +76,20 @@ def prepare_send_samples():
     send_buffer = []
     return send_samples
 
+
 def update_model():
     send_samples = prepare_send_samples()
-    print(send_samples[0].shape)
     bytes_send = tensorToMessage(send_samples)
-    s.sendall(bytes_send)  # send all bytes 
+    s.sendall(bytes_send)  # send all bytes
+    print("INFO: Images and annotations sent to cloud")
     receive_weights(s, model_updated_path)
     new_detector = SingleStageDetector()
     new_detector.load_state_dict(torch.load(model_updated_path, map_location=torch.device('cpu')))
+    print("INFO: Update model at edge!")
     new_detector.eval()
-    print("INFO: updated model accuracy is ", get_accuracy(new_detector))
+    print("INFO: Updated model accuracy is ", get_accuracy(new_detector))
     return new_detector
+
 
 def get_accuracy(detector):
     # get data loader
@@ -96,27 +102,29 @@ def get_accuracy(detector):
     # start inference
     for _, data_batch in enumerate(inference_loader):
         images, boxes, w_batch, h_batch, img_ids = data_batch
-        final_proposals, final_conf_scores, final_class = detector.inference(images, thresh=thresh, nms_thresh=nms_thresh)
+        final_proposals, final_conf_scores, final_class = detector.inference(images, thresh=thresh,
+                                                                             nms_thresh=nms_thresh)
 
         # clamp on the proposal coordinates
         for idx in range(batch_size):
             torch.clamp_(final_proposals[idx][:, 0::2], min=0, max=w_batch[idx])
             torch.clamp_(final_proposals[idx][:, 1::2], min=0, max=h_batch[idx])
             valid_box = sum([1 if j != -1 else 0 for j in boxes[idx][:, 0]])
-            final_all = torch.cat((final_proposals[idx], \
-                                final_class[idx].float(), final_conf_scores[idx]), dim=-1).cpu()
+            final_all = torch.cat((final_proposals[idx],
+                                   final_class[idx].float(), final_conf_scores[idx]), dim=-1).cpu()
             resized_proposals = coord_trans(final_all, w_batch[idx], h_batch[idx])
 
             # check if the predictions are incorrect
-            rst = check_predictions(boxes, valid_box, resized_proposals, idx, images, w_batch, h_batch, img_ids)
+            rst = check_predictions(boxes, valid_box, resized_proposals, idx)
 
             if rst:
                 correct += 1
             total += 1
-    
+
     # calculate accuracy
     accuracy = (correct / total) * 100
     return accuracy
+
 
 def inference():
     if os.path.exists(det_dir):
@@ -135,43 +143,48 @@ def inference():
     detector.load_state_dict(torch.load(model_pretrained_path, map_location=torch.device('cpu')))
     detector.eval()
 
-    print("INFO: pretrained accuracy is ", get_accuracy(detector))
+    print("INFO: Pretrained accuracy is ", get_accuracy(detector))
 
     # start inference
     for _, data_batch in enumerate(inference_loader):
         images, boxes, w_batch, h_batch, img_ids = data_batch
-        final_proposals, final_conf_scores, final_class = detector.inference(images, thresh=thresh, nms_thresh=nms_thresh)
+        final_proposals, final_conf_scores, final_class = detector.inference(images, thresh=thresh,
+                                                                             nms_thresh=nms_thresh)
 
         # clamp on the proposal coordinates
         for idx in range(batch_size):
             torch.clamp_(final_proposals[idx][:, 0::2], min=0, max=w_batch[idx])
             torch.clamp_(final_proposals[idx][:, 1::2], min=0, max=h_batch[idx])
             valid_box = sum([1 if j != -1 else 0 for j in boxes[idx][:, 0]])
-            final_all = torch.cat((final_proposals[idx], \
-                                final_class[idx].float(), final_conf_scores[idx]), dim=-1).cpu()
+            final_all = torch.cat((final_proposals[idx],
+                                   final_class[idx].float(), final_conf_scores[idx]), dim=-1).cpu()
             resized_proposals = coord_trans(final_all, w_batch[idx], h_batch[idx])
 
             # write results to file for evaluation (use mAP API https://github.com/Cartucho/mAP for now...)
             file_name = img_ids[idx].replace('.jpg', '.txt')
             with open(os.path.join(det_dir, file_name), 'w') as f_det, \
-                open(os.path.join(gt_dir, file_name), 'w') as f_gt:
+                    open(os.path.join(gt_dir, file_name), 'w') as f_gt:
                 # print('{}: {} GT bboxes and {} proposals'.format(img_ids[idx], valid_box, resized_proposals.shape[0]))
                 for b in boxes[idx][:valid_box]:
-                    f_gt.write('{} {:.2f} {:.2f} {:.2f} {:.2f}\n'.format(idx_to_class[b[4].item()], b[0], b[1], b[2], b[3]))
+                    f_gt.write(
+                        '{} {:.2f} {:.2f} {:.2f} {:.2f}\n'.format(idx_to_class[b[4].item()], b[0], b[1], b[2], b[3]))
                 for b in resized_proposals:
-                    f_det.write('{} {:.6f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.format(idx_to_class[b[4].item()], b[5], b[0], b[1], b[2], b[3]))
+                    f_det.write(
+                        '{} {:.6f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.format(idx_to_class[b[4].item()], b[5], b[0], b[1],
+                                                                         b[2], b[3]))
 
             # check if the predictions are incorrect
-            if not check_predictions(boxes, valid_box, resized_proposals, idx, images, w_batch, h_batch, img_ids):
+            if not check_predictions(boxes, valid_box, resized_proposals, idx):
                 send_buffer.append([images[idx], boxes[idx], w_batch[idx], h_batch[idx], img_ids[idx]])
 
             # communicate with cloud to get new model checkpoint
             if len(send_buffer) == incorrect_thresh:
-                print("INFO: Reach threshold, need to communicate with cloud!")
+                print("--------------------------------------------")
+                print("INFO: Reach send threshold!")
                 detector = update_model()
-                print("INFO: Update model at edge!")
             # sleep between inference requests
         # time.sleep(random.randint(1, 10) / 10)
+
 
 if __name__ == "__main__":
     inference()

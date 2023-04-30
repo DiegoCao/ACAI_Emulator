@@ -103,3 +103,4 @@ if __name__ == "__main__":
     # start listen to the edge, retrain and send back updated model as necessary
     DetectionRetrain(yoloDetector, learning_rate=lr, lr_decay=lr_decay,
                      num_epochs=retrain_num_epochs, device_type=device)
+

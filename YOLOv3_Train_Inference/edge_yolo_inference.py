@@ -10,9 +10,9 @@ from dataset import *
 from utils import *
 from network import *
 
-# inference images
 thresh = 0.8
 nms_thresh = 0.3
+cat_ratio = 1
 incorrect_thresh = 10
 
 output_dir = 'mAP/input'
@@ -22,7 +22,7 @@ model_pretrained_path = 'yolo_pretrained_detector.pt'
 model_updated_path = 'yolo_updated_edge_detector.pt'
 
 val_dataset = get_pascal_voc2007_data('content', 'val')
-inference_dataset = filter_dataset_with_class(val_dataset, 'cat', 1)
+inference_dataset = filter_dataset_with_class(val_dataset, 'cat', cat_ratio)
 
 send_buffer = []
 
@@ -98,6 +98,7 @@ def get_accuracy(detector):
 
     total = 0
     correct = 0
+    correct_cat_box = 0
 
     # start inference
     for _, data_batch in enumerate(inference_loader):
@@ -115,15 +116,20 @@ def get_accuracy(detector):
             resized_proposals = coord_trans(final_all, w_batch[idx], h_batch[idx])
 
             # check if the predictions are incorrect
-            rst = check_predictions(boxes, valid_box, resized_proposals, idx)
-
-            if rst:
+            detected_classes = [idx_to_class[b[4].item()] for b in boxes[idx][:valid_box]]
+            gt_classes = [idx_to_class[b[4].item()] for b in resized_proposals]
+            for i in range(min(len(gt_classes), len(detected_classes))):
+                if gt_classes[i] == "cat" and detected_classes[i] == "cat":
+                    correct_cat_box += 1
+            detected_classes.sort()
+            gt_classes.sort()
+            if detected_classes == gt_classes:
                 correct += 1
             total += 1
-
+                    
     # calculate accuracy
     accuracy = (correct / total) * 100
-    return accuracy
+    return accuracy, correct_cat_box
 
 
 def inference():

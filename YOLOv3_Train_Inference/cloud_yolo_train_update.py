@@ -7,7 +7,7 @@ import socket
 from torch import optim
 import time
 
-lr = 1e-3
+lr = 0
 retrain_num_epochs = 1
 retrain_batch_size = 10
 retrain_counter = 0
@@ -49,6 +49,7 @@ def serverSendWeight(model_path):
 
 def DetectionRetrain(detector, data_batch, learning_rate=3e-3,
                      lr_decay=1, num_epochs=20, device_type='cpu', **kwargs):
+    print("the fucking lr is ", learning_rate)
     if device_type == 'gpu':
         detector.to(**to_float_cuda)
 

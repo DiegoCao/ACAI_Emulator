@@ -55,7 +55,7 @@ def DetectionRetrain(detector, learning_rate=3e-3,
     # optimizer setup
     optimizer = optim.SGD(
         filter(lambda p: p.requires_grad, detector.parameters()),
-        learning_rate)  # leave betas and eps by default
+        lr = learning_rate)  # leave betas and eps by default
     lr_scheduler = optim.lr_scheduler.LambdaLR(optimizer,
                                                lambda epoch: learning_rate_decay ** epoch)
 
@@ -76,9 +76,9 @@ def DetectionRetrain(detector, learning_rate=3e-3,
                 resized_boxes = resized_boxes.to(**to_float_cuda)
 
             loss = detector(images, resized_boxes)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            # optimizer.zero_grad()
+            # loss.backward()
+            # optimizer.step()
 
             end_t = time.time()
             print('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(

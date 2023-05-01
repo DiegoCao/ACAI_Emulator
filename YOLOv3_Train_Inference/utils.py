@@ -1,3 +1,9 @@
+"""
+Credit to UMich EECS442
+By Churong Ji
+Please do NOT copy for personal use
+Contact: churongj@andrew.cmu.edu
+"""
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2

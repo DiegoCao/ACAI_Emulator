@@ -1,3 +1,10 @@
+"""
+Credit to UMich EECS442
+By Churong Ji, Yuqing Qiu
+Please do NOT copy for personal use
+Contact: churongj@andrew.cmu.edu
+         yuqingqi@andrew.cmu.edu
+"""
 import torch
 import random
 from torchvision import transforms

@@ -1,3 +1,9 @@
+"""
+Credit to UMich EECS442
+By Churong Ji
+Please do NOT copy for personal use
+Contact: churongj@andrew.cmu.edu
+"""
 import math
 import torch
 import torch.nn as nn

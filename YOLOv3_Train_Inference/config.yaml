@@ -22,7 +22,7 @@ spec:
         # args: ["-c", "python3 /app/cloud_yolo_train_update.py"]
         resources:
           requests:
-            memory: "8192Mi"
+            memory: "1024Mi"
             cpu: "1"
         ports:
         - containerPort: 5001

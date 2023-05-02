@@ -9,18 +9,24 @@ from model import *
 from dataset import *
 from utils import *
 from network import *
-
+import sys
+args = sys.argv
+host = args[1]
 thresh = 0.8
 nms_thresh = 0.3
 cat_ratio = 1
 incorrect_thresh = 10
 
-os.mkdir("mAP")
-os.mkdir("mAP/input")
+
+
+if not os.path.exists("mAP"):    
+    os.mkdir("mAP")
+if not os.path.exists("mAP/input"):
+    os.mkdir("mAP/input")
 output_dir = 'mAP/input'
 det_dir = 'mAP/input/detection-results'
 gt_dir = 'mAP/input/ground-truth'
-model_pretrained_path = 'yolo_pretrained_detector.pt'
+model_pretrained_path = 'yolo_detector.pt'
 model_updated_path = 'yolo_updated_edge_detector.pt'
 
 val_dataset = get_pascal_voc2007_data('content', 'val')
@@ -30,7 +36,7 @@ send_buffer = []
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((socket.gethostname(), 1234))
-s.settimeout(10.0)
+s.settimeout(30.0)
 
 
 def get_data_loader(batch_size):

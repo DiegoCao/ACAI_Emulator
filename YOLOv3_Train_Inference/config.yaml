@@ -19,7 +19,7 @@ spec:
       - name: yolo-demo-server
         image: docker.io/hangruicao/yolo:latest
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/server.py"]
+        args: ["-c", "python3 /app/cloud_yolo_train_update.py"]
         resources:
           requests:
             memory: "8192Mi"

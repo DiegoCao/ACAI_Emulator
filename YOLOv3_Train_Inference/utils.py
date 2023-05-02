@@ -6,7 +6,7 @@ Contact: churongj@andrew.cmu.edu
 """
 import matplotlib.pyplot as plt
 import numpy as np
-import cv2
+# import cv2
 import torch
 
 # data type and device for torch.tensor
@@ -69,47 +69,47 @@ def coord_trans(bbox, w_pixel, h_pixel, w_amap=7, h_amap=7, mode='a2p'):
     return resized_bbox
 
 
-def data_visualizer(img, idx_to_class, bbox=None, pred=None):
-    """
-    Data visualizer on the original image. Support both GT box input and proposal 
-    input.
+# def data_visualizer(img, idx_to_class, bbox=None, pred=None):
+#     """
+#     Data visualizer on the original image. Support both GT box input and proposal 
+#     input.
 
-    Input:
-    - img: PIL Image input
-    - idx_to_class: Mapping from the index (0-19) to the class name
-    - bbox: GT bbox (in red, optional), a tensor of shape Nx5, where N is
-          the number of GT boxes, 5 indicates (x_tl, y_tl, x_br, y_br, class)
-    - pred: Predicted bbox (in green, optional), a tensor of shape N'x6, where
-          N' is the number of predicted boxes, 6 indicates
-          (x_tl, y_tl, x_br, y_br, class, object confidence score)
-    """
+#     Input:
+#     - img: PIL Image input
+#     - idx_to_class: Mapping from the index (0-19) to the class name
+#     - bbox: GT bbox (in red, optional), a tensor of shape Nx5, where N is
+#           the number of GT boxes, 5 indicates (x_tl, y_tl, x_br, y_br, class)
+#     - pred: Predicted bbox (in green, optional), a tensor of shape N'x6, where
+#           N' is the number of predicted boxes, 6 indicates
+#           (x_tl, y_tl, x_br, y_br, class, object confidence score)
+#     """
 
-    img_copy = np.array(img).astype('uint8')
+#     img_copy = np.array(img).astype('uint8')
 
-    if bbox is not None:
-        for bbox_idx in range(bbox.shape[0]):
-            one_bbox = bbox[bbox_idx][:4]
-            cv2.rectangle(img_copy, (int(one_bbox[0]), int(one_bbox[1])), (int(one_bbox[2]),
-                                                                           int(one_bbox[3])), (255, 0, 0), 2)
-            if bbox.shape[1] > 4:  # if class info provided
-                obj_cls = idx_to_class[bbox[bbox_idx][4].item()]
-                cv2.putText(img_copy, '%s' % obj_cls,
-                            (one_bbox[0], one_bbox[1] + 15),
-                            cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255), thickness=1)
+#     if bbox is not None:
+#         for bbox_idx in range(bbox.shape[0]):
+#             one_bbox = bbox[bbox_idx][:4]
+#             cv2.rectangle(img_copy, (int(one_bbox[0]), int(one_bbox[1])), (int(one_bbox[2]),
+#                                                                            int(one_bbox[3])), (255, 0, 0), 2)
+#             if bbox.shape[1] > 4:  # if class info provided
+#                 obj_cls = idx_to_class[bbox[bbox_idx][4].item()]
+#                 cv2.putText(img_copy, '%s' % obj_cls,
+#                             (one_bbox[0], one_bbox[1] + 15),
+#                             cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255), thickness=1)
 
-    if pred is not None:
-        for bbox_idx in range(pred.shape[0]):
-            one_bbox = pred[bbox_idx][:4]
-            cv2.rectangle(img_copy, (int(one_bbox[0]), int(one_bbox[1])), (int(one_bbox[2]),
-                                                                           int(one_bbox[3])), (0, 255, 0), 2)
+#     if pred is not None:
+#         for bbox_idx in range(pred.shape[0]):
+#             one_bbox = pred[bbox_idx][:4]
+#             cv2.rectangle(img_copy, (int(one_bbox[0]), int(one_bbox[1])), (int(one_bbox[2]),
+#                                                                            int(one_bbox[3])), (0, 255, 0), 2)
 
-            if pred.shape[1] > 4:  # if class and conf score info provided
-                obj_cls = idx_to_class[pred[bbox_idx][4].item()]
-                conf_score = pred[bbox_idx][5].item()
-                cv2.putText(img_copy, '%s, %.2f' % (obj_cls, conf_score),
-                            (one_bbox[0], one_bbox[1] + 15),
-                            cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255), thickness=1)
+#             if pred.shape[1] > 4:  # if class and conf score info provided
+#                 obj_cls = idx_to_class[pred[bbox_idx][4].item()]
+#                 conf_score = pred[bbox_idx][5].item()
+#                 cv2.putText(img_copy, '%s, %.2f' % (obj_cls, conf_score),
+#                             (one_bbox[0], one_bbox[1] + 15),
+#                             cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255), thickness=1)
 
-    plt.imshow(img_copy)
-    plt.axis('off')
-    plt.show()
+#     plt.imshow(img_copy)
+#     plt.axis('off')
+#     plt.show()

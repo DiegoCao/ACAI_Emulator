@@ -15,6 +15,8 @@ nms_thresh = 0.3
 cat_ratio = 1
 incorrect_thresh = 10
 
+os.mkdir("mAP")
+os.mkdir("mAP/input")
 output_dir = 'mAP/input'
 det_dir = 'mAP/input/detection-results'
 gt_dir = 'mAP/input/ground-truth'

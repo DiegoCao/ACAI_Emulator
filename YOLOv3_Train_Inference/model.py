@@ -11,12 +11,10 @@ import torch.nn.functional as F
 import torchvision
 import numpy as np
 
-
 class FeatureExtractor(nn.Module):
     """
     Image feature extraction with MobileNet.
     """
-
     def __init__(self, reshape_size=224, pooling=False, verbose=False):
         super().__init__()
 

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+  namespace: yolo
+  labels:
+    app: yolo-demo-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yolo-demo-server
+  template:
+    metadata:
+      labels:
+        app: yolo-demo-server
+    spec:
+      containers:
+      - name: yolo-demo-server
+        image: docker.io/hangruicao/yolo:latest
+        command: ["/bin/sh"]
+        args: ["-c", "python3 /app/server.py"]
+        resources:
+          requests:
+            memory: "8192Mi"
+            cpu: "1"
+        ports:
+        - containerPort: 5001
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-service
+  namespace: yolo
+spec:
+  selector:
+    app: yolo-demo-server
+  ports:
+  - protocol: TCP
+    port: 5001

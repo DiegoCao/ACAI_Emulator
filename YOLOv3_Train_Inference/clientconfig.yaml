@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: client-deployment
-  namespace: speedtest
+  namespace: yolo
   labels:
     app: yolo-demo-client
 spec:
@@ -17,12 +17,12 @@ spec:
     spec:
       containers:
       - name: file-transfer-client
-        image: docker.io/hangruicao/yolo:client
+        image: docker.io/hangruicao/yolo:clientv4
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/edge_yolo_inference.py "]
+        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.58.87 5001"]
         resources:
           requests:
-            memory: "1024Mi"
+            memory: "2048Mi"
             cpu: "1"
         ports:
         - containerPort: 8080

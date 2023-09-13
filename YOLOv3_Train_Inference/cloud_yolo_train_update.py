@@ -21,22 +21,25 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((socket.gethostname(), 1234))
 s.listen(5)
 clientsocket = None
+clientsocket, address = s.accept()
 
-sock_established = False
+# sock_established = False
 
 
 def serverReceiveImg():
     # should be a BLOCKING function if not enough image received
     # returns batch img and annotation, assume img already normalized
-    global sock_established
-    global clientsocket
-    while True and not sock_established:
-        # print("Try to accept connection!")
-        sock_established = True
-        clientsocket, address = s.accept()
-        break
-    samples = receive_imgs(clientsocket)
 
+    # TODO: Ask - usage of the below commented lines?
+    # global sock_established
+    # global clientsocket
+    # clientsocket, address = s.accept()
+    # while True and not sock_established:
+    #     # print("Try to accept connection!")
+    #     sock_established = True
+    #     clientsocket, address = s.accept()
+    #     break
+    samples = receive_imgs(clientsocket)
     image_batch, box_batch, w_batch, h_batch, img_id_list = samples
     return image_batch, box_batch, w_batch, h_batch, img_id_list
 
@@ -67,6 +70,8 @@ def DetectionRetrain(detector, learning_rate=3e-3,
         retrain_data_batch = serverReceiveImg()
         print("INFO: Incorrect image batch received from the edge")
 
+        retrain_start_time = time.perf_counter()
+
         for i in range(num_epochs):
             start_t = time.time()
 
@@ -88,9 +93,15 @@ def DetectionRetrain(detector, learning_rate=3e-3,
             lr_scheduler.step()
 
         print("INFO: Retrain Round " + str(retrain_counter) + " finished")
+
+        retrain_time = time.perf_counter() - retrain_start_time
+        print("********************************************")
+        print(f"METRIC: Cloud model refine takes: {retrain_time:.6f} seconds")
+
         retrain_counter += 1
         torch.save(yoloDetector.state_dict(), updated_model_path)
         print("INFO: Model saved in ", updated_model_path)
+        # TODO: may can add communication latency measurement here as the edge part
         serverSendWeight(updated_model_path)
         print("INFO: Model params sent to edge")
 

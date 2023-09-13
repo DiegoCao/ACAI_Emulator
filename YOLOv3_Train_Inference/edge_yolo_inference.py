@@ -100,6 +100,9 @@ def prepare_send_samples():
 def update_model():
     send_samples = prepare_send_samples()
     bytes_send = tensorToMessage(send_samples)
+    # TODO: add communication latency measurement here
+    #  (but this does not mean data arrives at the cloud side?)
+    #  might need send start time from edge & recv end time from cloud
     s.sendall(bytes_send)  # send all bytes
     print("INFO: Images and annotations sent to cloud")
     receive_weights(s, model_updated_path)
@@ -170,9 +173,16 @@ def inference():
 
     print("INFO: Pretrained accuracy is ", get_accuracy(detector))
 
+    # retrieve inference time every {perf_img_thresh} images to evaluate inference latency/speed
+    inf_latency_img_thresh = 10
+    cur_img_cnt = 0
+    total_inf_time = 0
+
     # start inference
     while True:
         for _, data_batch in enumerate(inference_loader):
+            inf_start_time = time.perf_counter()
+
             images, boxes, w_batch, h_batch, img_ids = data_batch
             final_proposals, final_conf_scores, final_class = detector.inference(images, thresh=thresh,
                                                                                  nms_thresh=nms_thresh)
@@ -203,11 +213,25 @@ def inference():
                 if not check_predictions(boxes, valid_box, resized_proposals, idx):
                     send_buffer.append([images[idx], boxes[idx], w_batch[idx], h_batch[idx], img_ids[idx]])
 
-                # communicate with cloud to get new model checkpoint
+                cur_img_cnt += 1
+                inf_end_time = time.perf_counter()
+                total_inf_time += (inf_end_time - inf_start_time)
+                if cur_img_cnt == inf_latency_img_thresh:
+                    print("********************************************")
+                    print(f"METRIC: Edge image inference in avg of {inf_latency_img_thresh} takes: "
+                          f"{total_inf_time / inf_latency_img_thresh:.6f} seconds")
+                    cur_img_cnt = 0
+                    total_inf_time = 0
+
                 if len(send_buffer) == incorrect_thresh:
+                    # communicate with cloud to get new model checkpoint
                     print("--------------------------------------------")
                     print("INFO: Reach send threshold!")
+                    update_start_time = time.perf_counter()
                     detector = update_model()
+                    update_elapsed_time = time.perf_counter() - update_start_time
+                    print("********************************************")
+                    print(f"METRIC: Model update with cloud takes: {update_elapsed_time:.6f} seconds")
 
             # sleep between inference requests
             # time.sleep(random.randint(1, 10) / 10)

@@ -1,4 +1,5 @@
 # Created by Churong Ji at 4/27/23
+
 from model import *
 from utils import *
 from network import *
@@ -13,7 +14,7 @@ retrain_num_epochs = 1
 retrain_batch_size = 10
 # options: ['cpu', 'gpu']
 device = 'cpu'
-updated_model_path = 'yolo_updated_detector.pt'
+updated_model_path = 'models/yolo_updated_detector.pt'
 
 # define the server socket locally
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -48,14 +49,14 @@ def serverSendWeight(model_path):
 
 
 def DetectionRetrain(detector, learning_rate=3e-3,
-                     learning_rate_decay=1, num_epochs=20, device_type='cpu', **kwargs):
+                     learning_rate_decay=1, num_epochs=20, device_type='cpu'):
     if device_type == 'gpu':
         detector.to(**to_float_cuda)
 
     # optimizer setup
     optimizer = optim.SGD(
         filter(lambda p: p.requires_grad, detector.parameters()),
-        lr = learning_rate)  # leave betas and eps by default
+        lr=learning_rate)  # leave betas and eps by default
     lr_scheduler = optim.lr_scheduler.LambdaLR(optimizer,
                                                lambda epoch: learning_rate_decay ** epoch)
 
@@ -76,9 +77,9 @@ def DetectionRetrain(detector, learning_rate=3e-3,
                 resized_boxes = resized_boxes.to(**to_float_cuda)
 
             loss = detector(images, resized_boxes)
-            # optimizer.zero_grad()
-            # loss.backward()
-            # optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
             end_t = time.time()
             print('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(
@@ -97,10 +98,8 @@ def DetectionRetrain(detector, learning_rate=3e-3,
 if __name__ == "__main__":
     # load pretrained model
     yoloDetector = SingleStageDetector()
-    yoloDetector.load_state_dict(torch.load('yolo_detector.pt', map_location=torch.device('cpu')))
+    yoloDetector.load_state_dict(torch.load('models/yolo_detector.pt', map_location=torch.device('cpu')))
     print("Model Loaded")
 
     # start listen to the edge, retrain and send back updated model as necessary
-    DetectionRetrain(yoloDetector, learning_rate=lr, lr_decay=lr_decay,
-                     num_epochs=retrain_num_epochs, device_type=device)
-
+    DetectionRetrain(yoloDetector, learning_rate=lr, num_epochs=retrain_num_epochs, device_type=device)

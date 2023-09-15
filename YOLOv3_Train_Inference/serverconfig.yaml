@@ -25,7 +25,7 @@ spec:
             memory: "1024Mi"
             cpu: "1"
         ports:
-        - containerPort: 5001
+        - containerPort: 9876
 
 ---
 apiVersion: v1
@@ -38,4 +38,4 @@ spec:
     app: yolo-demo-server
   ports:
   - protocol: TCP
-    port: 5001
+    port: 9876

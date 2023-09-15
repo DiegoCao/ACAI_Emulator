@@ -6,8 +6,9 @@ RUN pip3 install tqdm
 
 WORKDIR /app
 COPY ./*.py /app
-COPY ./*.pt /app 
+RUN mkdir -p models/
+COPY ./models/*.pt /app/models
 COPY ./requirement.txt /app/
 RUN pip3 install -r /app/requirement.txt 
 
-EXPOSE 5001
+EXPOSE 9876

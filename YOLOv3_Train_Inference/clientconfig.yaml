@@ -19,7 +19,7 @@ spec:
       - name: file-transfer-client
         image: docker.io/hangruicao/yolo:clientv4
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.58.87 5001"]
+        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.58.87 9876"]
         resources:
           requests:
             memory: "2048Mi"
@@ -39,4 +39,4 @@ spec:
   ports:
   - protocol: TCP
     port: 8080
-    targetPort: 5001
+    targetPort: 9876

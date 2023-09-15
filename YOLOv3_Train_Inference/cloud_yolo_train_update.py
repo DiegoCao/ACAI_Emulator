@@ -21,9 +21,9 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((socket.gethostname(), 1234))
 s.listen(5)
 clientsocket = None
-clientsocket, address = s.accept()
+# clientsocket, address = s.accept()
 
-# sock_established = False
+sock_established = False
 
 
 def serverReceiveImg():
@@ -31,14 +31,14 @@ def serverReceiveImg():
     # returns batch img and annotation, assume img already normalized
 
     # TODO: Ask - usage of the below commented lines?
-    # global sock_established
-    # global clientsocket
-    # clientsocket, address = s.accept()
-    # while True and not sock_established:
-    #     # print("Try to accept connection!")
-    #     sock_established = True
-    #     clientsocket, address = s.accept()
-    #     break
+    global sock_established
+    global clientsocket
+    clientsocket, address = s.accept()
+    while True and not sock_established:
+        # print("Try to accept connection!")
+        sock_established = True
+        clientsocket, address = s.accept()
+        break
     samples = receive_imgs(clientsocket)
     image_batch, box_batch, w_batch, h_batch, img_id_list = samples
     return image_batch, box_batch, w_batch, h_batch, img_id_list

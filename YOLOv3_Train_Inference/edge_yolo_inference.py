@@ -47,7 +47,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 if host == "local":
     s.connect((socket.gethostname(), 1234))
 else:
-    s.connect((host, 5001))
+    s.connect((host, int(port)))
 s.settimeout(30.0)
 
 

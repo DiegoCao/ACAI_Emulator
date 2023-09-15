@@ -9,8 +9,8 @@ def generate_random_text_file(file_name, size_in_bytes):
     with open(file_name, "w") as file:
         file.write(''.join(random.choice(string.ascii_letters) for _ in range(size_in_bytes)))
 
-def client(server_ip, server_port, num_requests, log_address):
-    
+def client(server_ip, server_port, num_requests):
+    log_address = "/logs/client-log.txt"
     with open(log_address, 'r+') as f:
         f.truncate(0)
 
@@ -52,5 +52,4 @@ if __name__ == "__main__":
     ip = sys.argv[1]
     port = int(sys.argv[2])
     num_requests = int(sys.argv[3])
-    log_address = sys.argv[4]
-    client(ip, port, num_requests, log_address)
+    client(ip, port, num_requests)

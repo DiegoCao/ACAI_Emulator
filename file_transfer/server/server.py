@@ -3,8 +3,8 @@ import os
 import time
 import sys
 
-def server(log_address):
-
+def server():
+    log_address = "/logs/log.txt"
     with open(log_address, 'r+') as f:
         f.truncate(0)
 
@@ -43,7 +43,7 @@ def server(log_address):
         conn.close()
 
         # Calculate statistics
-        file_size = os.path.getsize("received.txt")
+        file_size = os.path.getsize("/data/received.txt")
         latency = end_time - start_time
         drop_rate = 0  # to be implemented
         bandwidth = file_size / latency / 1024  # KB/s
@@ -55,5 +55,4 @@ def server(log_address):
             file_size, latency, bandwidth))
 
 if __name__ == "__main__":
-    log_address = sys.argv[1]
-    server(log_address)
+    server()

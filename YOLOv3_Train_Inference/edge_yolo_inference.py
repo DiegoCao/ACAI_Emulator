@@ -21,7 +21,7 @@ import sys
 args = sys.argv
 host = args[1]
 port = args[2]
-print("the client host and port are ", host, " ", port)
+print("The client host and port are ", host, " ", port)
 
 thresh = 0.8
 nms_thresh = 0.3
@@ -45,7 +45,7 @@ send_buffer = []
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 if host == "local":
-    s.connect((socket.gethostname(), 1234))
+    s.connect((socket.gethostname(), int(port)))
 else:
     s.connect((host, int(port)))
 s.settimeout(30.0)

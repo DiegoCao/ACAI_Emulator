@@ -6,7 +6,11 @@ from network import *
 import torch
 import socket
 from torch import optim
+import sys
 import time
+
+port = sys.argv[1]
+print("The server port is ", port)
 
 lr = 1e-3
 lr_decay = 0.8
@@ -16,9 +20,9 @@ retrain_batch_size = 10
 device = 'cpu'
 updated_model_path = 'models/yolo_updated_detector.pt'
 
-# define the server socket locally
+# define the server socket
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((socket.gethostname(), 1234))
+s.bind((socket.gethostname(), int(port)))
 s.listen(5)
 clientsocket = None
 # clientsocket, address = s.accept()
@@ -33,7 +37,6 @@ def serverReceiveImg():
     # TODO: Ask - usage of the below commented lines?
     global sock_established
     global clientsocket
-    clientsocket, address = s.accept()
     while True and not sock_established:
         # print("Try to accept connection!")
         sock_established = True

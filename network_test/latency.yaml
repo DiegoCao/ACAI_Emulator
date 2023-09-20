@@ -1,0 +1,14 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: delay
+spec:
+  action: delay
+  mode: one
+  selector:
+    namespaces:
+      - bwtest
+  delay:
+    latency: '100ms'
+    correlation: '100'
+    jitter: '0ms'

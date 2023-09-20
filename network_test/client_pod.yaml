@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cpu-client-pod
+  namespace: bwtest
+spec:
+  containers:
+    - name: cpu-tf-mnist-train
+      image: tensorflow/tensorflow:latest
+      command: [ "/bin/bash", "-c", "--" ]
+      args: [ "while true; do sleep 300000000; done;" ]
+      resources:
+        limits:
+          nvidia.com/gpu: 0
+      ports:
+        - containerPort: 8901
+  restartPolicy: Never
+
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-service-cpu
+  namespace: bwtest
+spec:
+  ports:
+  - protocol: TCP
+    port: 8901
+    targetPort: 5210

@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cpu-pod-server
+  namespace: bwtest
+spec:
+  containers:
+    - name: cpu-tf-mnist-train
+      image: tensorflow/tensorflow:latest
+      command: [ "/bin/bash", "-c", "--" ]
+      args: [ "while true; do sleep 30; done;" ]
+      resources:
+        limits:
+          nvidia.com/gpu: 0
+      ports:
+      - containerPort: 5210
+  restartPolicy: Never
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cpu-service1
+  namespace: bwtest
+spec:
+  ports:
+  - protocol: TCP
+    port: 5210

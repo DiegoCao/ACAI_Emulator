@@ -17,15 +17,15 @@ spec:
     spec:
       containers:
       - name: yolo-demo-server
-        image: docker.io/hangruicao/yolo:v4
+        image: docker.io/churong/yolo:latest
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/cloud_yolo_train_update.py"]
+        args: ["-c", "python3 /app/cloud_yolo_train_update.py 9876"]
         resources:
           requests:
             memory: "1024Mi"
             cpu: "1"
         ports:
-        - containerPort: 5001
+        - containerPort: 9876
 
 ---
 apiVersion: v1
@@ -38,4 +38,4 @@ spec:
     app: yolo-demo-server
   ports:
   - protocol: TCP
-    port: 5001
+    port: 9876

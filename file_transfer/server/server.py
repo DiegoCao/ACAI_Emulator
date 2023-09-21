@@ -36,22 +36,23 @@ def server():
                 file.write(data)
                 remaining_data -= len(data)
 
+        end_time = time.time()
+
         # Send acknowledgment back to the client
         conn.sendall("File received successfully".encode('utf-8'))
 
-        end_time = time.time()
         conn.close()
 
         # Calculate statistics
         file_size = os.path.getsize("/data/received.txt")
         latency = end_time - start_time
         drop_rate = 0  # to be implemented
-        bandwidth = file_size / latency / 1024  # KB/s
+        bandwidth = file_size / latency / (1024*1024) * 8  # Mbps
 
-        print("Received {} bytes(Latency: {:.4f} seconds, Bandwidth: {:.4f} KB/s)".format(
+        print("Received {} bytes(Latency: {:.4f} seconds, Bandwidth: {:.4f} Mbps)".format(
             file_size, latency, bandwidth))
         with open(log_address, "a") as f:
-            f.write("Received {} bytes(Latency: {:.4f} seconds, Bandwidth: {:.4f} KB/s)\n".format(
+            f.write("Received {} bytes(Latency: {:.4f} seconds, Bandwidth: {:.4f} Mbps)\n".format(
             file_size, latency, bandwidth))
 
 if __name__ == "__main__":

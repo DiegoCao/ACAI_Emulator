@@ -14,6 +14,9 @@ def client(server_ip, server_port, num_requests):
     with open(log_address, 'r+') as f:
         f.truncate(0)
 
+    bandwidths = 0
+    RTTs = 0
+
     for i in range(num_requests):
         file_name = "/data/random_file{}.txt".format(i)
         # Generate random file size between 10MB and 20MB
@@ -26,11 +29,14 @@ def client(server_ip, server_port, num_requests):
 
         # Send the file size to the server
         file_size_str = str(file_size)
+        start_time = time.time()
         client_socket.sendall(file_size_str.encode('utf-8'))
 
         # Wait for acknowledgment from the server
         acknowledgment = client_socket.recv(1024)
-        print("Received acknowledgment from server:", acknowledgment.decode('utf-8'))
+        end_time = time.time()
+        RTTs += end_time - start_time
+        print("Received acknowledgment, RTT is {}".format(end_time - start_time))
 
         with open(file_name, "rb") as file:
             file_data = file.read()
@@ -41,12 +47,18 @@ def client(server_ip, server_port, num_requests):
 
         client_socket.close()
 
-        latency = end_time - start_time
+        period = end_time - start_time
         print("Request {}: Sent {} bytes in {:.4f} seconds".format(
-            i + 1, len(file_data), latency))
+            i + 1, len(file_data), period))
         with open(log_address, "a") as f:
             f.write("Request {}: Sent {} bytes in {:.4f} seconds\n".format(
-            i + 1, len(file_data), latency))
+            i + 1, len(file_data), period))
+
+        bandwidths += 8*file_size/period/(1024*1024)
+
+    print("Average bandwidth is {:.2f} Mbps over {} requests".format(bandwidths/num_requests, num_requests))
+    print("Average RTT is {:.2f}ms over {} requests".format(RTTs/num_requests*1000, num_requests))
+
 
 if __name__ == "__main__":
     ip = sys.argv[1]

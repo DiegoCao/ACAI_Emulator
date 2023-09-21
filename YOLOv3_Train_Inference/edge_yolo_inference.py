@@ -23,6 +23,8 @@ host = args[1]
 port = args[2]
 print("The client host and port are ", host, " ", port)
 
+init_start_time = time.perf_counter()
+
 thresh = 0.8
 nms_thresh = 0.3
 cat_ratio = 1
@@ -48,7 +50,7 @@ if host == "local":
     s.connect((socket.gethostname(), int(port)))
 else:
     s.connect((host, int(port)))
-s.settimeout(30.0)
+s.settimeout(120.0)
 
 
 def get_data_loader(batch_size):
@@ -172,6 +174,8 @@ def inference():
     detector.eval()
 
     print("INFO: Pretrained accuracy is ", get_accuracy(detector))
+    init_time = time.perf_counter() - init_start_time
+    print(f"INFO: Init finished, taking {init_time:.6f} seconds")
 
     # retrieve inference time every {perf_img_thresh} images to evaluate inference latency/speed
     inf_latency_img_thresh = 10

@@ -12,6 +12,8 @@ import time
 port = sys.argv[1]
 print("The server port is ", port)
 
+init_start_time = time.perf_counter()
+
 lr = 1e-3
 lr_decay = 0.8
 retrain_num_epochs = 1
@@ -114,6 +116,9 @@ if __name__ == "__main__":
     yoloDetector = SingleStageDetector()
     yoloDetector.load_state_dict(torch.load('models/yolo_detector.pt', map_location=torch.device('cpu')))
     print("Model Loaded")
+
+    init_time = time.perf_counter() - init_start_time
+    print(f"INFO: Init finished, taking {init_time:.6f} seconds")
 
     # start listen to the edge, retrain and send back updated model as necessary
     DetectionRetrain(yoloDetector, learning_rate=lr, num_epochs=retrain_num_epochs, device_type=device)

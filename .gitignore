@@ -3,5 +3,6 @@ YOLOv3_Train_Inference/mAP/
 YOLOv3_Train_Inference/VOCtrainval_06-Nov-2007.tar
 YOLOv3_Train_Inference/.DS_Store
 YOLOv3_Train_Inference/.ipynb_checkpoints/
+YOLOv3_Train_Inference/logs/
 .DS_Store
 .idea/

@@ -19,7 +19,7 @@ spec:
       - name: yolo-demo-client
         image: docker.io/churong/yolo:latest
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.50 9876"]
+        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.255 9876 logs/edge_log.txt"]
         resources:
           requests:
             memory: "2048Mi"
@@ -31,11 +31,17 @@ spec:
         volumeMounts:
         - name: dataset-volume
           mountPath: /app/content
+        - name: log-volume
+          mountPath: /app/logs
       volumes:
       - name: dataset-volume
         nfs:
           server: basket
           path: /users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/content
+      - name: log-volume
+        nfs:
+          server: basket
+          path: /users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs
 
 ---
 apiVersion: v1

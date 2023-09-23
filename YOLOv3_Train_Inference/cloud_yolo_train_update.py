@@ -1,35 +1,14 @@
 # Created by Churong Ji at 4/27/23
 
+import logging
+import os
+import socket
+import sys
+import time
+from torch import optim
 from model import *
 from utils import *
 from network import *
-import torch
-import socket
-from torch import optim
-import sys
-import time
-
-port = sys.argv[1]
-print("The server port is ", port)
-
-init_start_time = time.perf_counter()
-
-lr = 1e-3
-lr_decay = 0.8
-retrain_num_epochs = 1
-retrain_batch_size = 10
-# options: ['cpu', 'gpu']
-device = 'cpu'
-updated_model_path = 'models/yolo_updated_detector.pt'
-
-# define the server socket
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((socket.gethostname(), int(port)))
-s.listen(5)
-clientsocket = None
-# clientsocket, address = s.accept()
-
-sock_established = False
 
 
 def serverReceiveImg():
@@ -71,9 +50,9 @@ def DetectionRetrain(detector, learning_rate=3e-3,
     detector.train()
     retrain_counter = 0
     while True:
-        print("--------------------------------------------")
+        logging.info("--------------------------------------------")
         retrain_data_batch = serverReceiveImg()
-        print("INFO: Incorrect image batch received from the edge")
+        logging.info("INFO: Incorrect image batch received from the edge")
 
         retrain_start_time = time.perf_counter()
 
@@ -92,33 +71,68 @@ def DetectionRetrain(detector, learning_rate=3e-3,
             optimizer.step()
 
             end_t = time.time()
-            print('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(
+            logging.info('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(
                 i + 1, num_epochs, loss.item(), end_t - start_t))
 
             lr_scheduler.step()
 
-        print("INFO: Retrain Round " + str(retrain_counter) + " finished")
+        logging.info("INFO: Retrain Round " + str(retrain_counter) + " finished")
 
         retrain_time = time.perf_counter() - retrain_start_time
-        print("********************************************")
-        print(f"METRIC: Cloud model refine takes: {retrain_time:.6f} seconds")
+        logging.info("********************************************")
+        logging.info(f"METRIC: Cloud model refine takes: {retrain_time:.6f} seconds")
 
         retrain_counter += 1
         torch.save(yoloDetector.state_dict(), updated_model_path)
-        print("INFO: Model saved in ", updated_model_path)
+        logging.info("INFO: Model saved in " + updated_model_path)
         # TODO: may can add communication latency measurement here as the edge part
         serverSendWeight(updated_model_path)
-        print("INFO: Model params sent to edge")
+        logging.info("INFO: Model params sent to edge")
 
 
 if __name__ == "__main__":
+    args = sys.argv
+    if len(args) != 3:
+        print("ERROR: Incorrect Number of arguments!")
+        exit(1)
+    port, log_file = args[1], args[2]
+
+    if os.path.exists(log_file):
+        print("INFO: Old cloud log file is deleted")
+        os.remove(log_file)
+    print("INFO: Cloud Logs are written to ", log_file)
+
+    targets = logging.StreamHandler(sys.stdout), logging.FileHandler(log_file)
+    logging.basicConfig(format='%(message)s', level=logging.INFO, handlers=targets)
+
+    logging.info("INFO: The server port is " + port)
+
+    init_start_time = time.perf_counter()
+
+    lr = 1e-3
+    lr_decay = 0.8
+    retrain_num_epochs = 1
+    retrain_batch_size = 10
+    # options: ['cpu', 'gpu']
+    device = 'cpu'
+    updated_model_path = 'models/yolo_updated_detector.pt'
+
+    # define the server socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((socket.gethostname(), int(port)))
+    s.listen(5)
+    clientsocket = None
+    # clientsocket, address = s.accept()
+
+    sock_established = False
+
     # load pretrained model
     yoloDetector = SingleStageDetector()
     yoloDetector.load_state_dict(torch.load('models/yolo_detector.pt', map_location=torch.device('cpu')))
-    print("Model Loaded")
+    logging.info("INFO: Model Loaded")
 
     init_time = time.perf_counter() - init_start_time
-    print(f"INFO: Init finished, taking {init_time:.6f} seconds")
+    logging.info(f"INFO: Init finished, taking {init_time:.6f} seconds")
 
     # start listen to the edge, retrain and send back updated model as necessary
     DetectionRetrain(yoloDetector, learning_rate=lr, num_epochs=retrain_num_epochs, device_type=device)

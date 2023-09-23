@@ -19,13 +19,22 @@ spec:
       - name: yolo-demo-server
         image: docker.io/churong/yolo:latest
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/cloud_yolo_train_update.py 9876"]
+        args: ["-c", "python3 /app/cloud_yolo_train_update.py 9876 logs/cloud_log.txt"]
         resources:
           requests:
             memory: "1024Mi"
             cpu: "1"
         ports:
         - containerPort: 9876
+        volumeMounts:
+        - name: log-volume
+          mountPath: /app/logs
+      volumes:
+      - name: log-volume
+        nfs:
+          server: basket
+          path: /users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs
+
 
 ---
 apiVersion: v1

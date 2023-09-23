@@ -8,6 +8,7 @@ WORKDIR /app
 COPY ./*.py /app
 RUN mkdir -p models/
 RUN mkdir -p content/
+RUN mkdir -p logs/
 COPY ./models/*.pt /app/models
 COPY ./requirement.txt /app/
 RUN pip3 install -r /app/requirement.txt 

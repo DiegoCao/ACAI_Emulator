@@ -9,6 +9,7 @@ from torch import optim
 from model import *
 from utils import *
 from network import *
+from threading import Thread
 
 
 def serverReceiveImg():
@@ -16,13 +17,11 @@ def serverReceiveImg():
     # returns batch img and annotation, assume img already normalized
 
     # TODO: Ask - usage of the below commented lines?
-    global sock_established
     global clientsocket
-    while True and not sock_established:
-        # print("Try to accept connection!")
-        sock_established = True
-        clientsocket, address = s.accept()
-        break
+    # while True and not sock_established:
+    #     # print("Try to accept connection!")
+    #     sock_established = True
+    clientsocket, address = s.accept()
     samples = receive_imgs(clientsocket)
     image_batch, box_batch, w_batch, h_batch, img_id_list = samples
     return image_batch, box_batch, w_batch, h_batch, img_id_list
@@ -119,12 +118,13 @@ if __name__ == "__main__":
 
     # define the server socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(200.0)
+
     s.bind((socket.gethostname(), int(port)))
     s.listen(5)
     clientsocket = None
     # clientsocket, address = s.accept()
 
-    sock_established = False
 
     # load pretrained model
     yoloDetector = SingleStageDetector()

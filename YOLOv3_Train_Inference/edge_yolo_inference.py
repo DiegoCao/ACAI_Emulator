@@ -17,6 +17,7 @@ from model import *
 from dataset import *
 from utils import *
 from network import *
+from threading import Thread
 
 
 def get_data_loader(batch_size):
@@ -36,11 +37,12 @@ def check_predictions(boxes, valid_box, resized_proposals, idx):
 
 def prepare_send_samples():
     global send_buffer
+    subset_buffer = send_buffer[:10]
     # update boxes
-    obj_num = [len(sample[1]) for sample in send_buffer]
+    obj_num = [len(sample[1]) for sample in subset_buffer]
     max_obj_num = max(obj_num)
-    for i in range(len(send_buffer)):
-        box = send_buffer[i][1]
+    for i in range(len(subset_buffer)):
+        box = subset_buffer[i][1]
         if len(box) < max_obj_num:
             diff = max_obj_num - len(box)
             width = box.size(dim=1)
@@ -48,11 +50,11 @@ def prepare_send_samples():
             send_buffer[i][1] = torch.cat((box, padding), 0)
 
     # stack to one tensor
-    image_batch_lis = [item[0] for item in send_buffer]
-    box_batch_lis = [item[1] for item in send_buffer]
-    w_batch_lis = [item[2].item() for item in send_buffer]
-    h_batch_lis = [item[3].item() for item in send_buffer]
-    img_id_list = [item[4] for item in send_buffer]
+    image_batch_lis = [item[0] for item in subset_buffer]
+    box_batch_lis = [item[1] for item in subset_buffer]
+    w_batch_lis = [item[2].item() for item in subset_buffer]
+    h_batch_lis = [item[3].item() for item in subset_buffer]
+    img_id_list = [item[4] for item in subset_buffer]
 
     image_batch = torch.stack(image_batch_lis, 0)
     box_batch = torch.stack(box_batch_lis, 0)
@@ -66,6 +68,16 @@ def prepare_send_samples():
 
 
 def update_model():
+    global new_detector
+    global flag
+    global current_threads
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(60.0)
+
+    if host == "local":
+        s.connect((socket.gethostname(), int(port)))
+    else:
+        s.connect((host, int(port)))
     send_samples = prepare_send_samples()
     bytes_send = tensorToMessage(send_samples)
     # TODO: add communication latency measurement here
@@ -79,7 +91,10 @@ def update_model():
     logging.info("INFO: Update model at edge!")
     new_detector.eval()
     logging.info(f"INFO: Updated model accuracy is [{get_accuracy(new_detector)[0]: .6f}]")
-    return new_detector
+    flag = True 
+    current_threads -= 1
+    logging.info(f"INFO: Current thread is {current_threads}")
+    # return new_detector
 
 
 def get_accuracy(detector):
@@ -148,10 +163,16 @@ def inference():
     inf_latency_img_thresh = 10
     cur_img_cnt = 0
     total_inf_time = 0
-
+    global current_threads 
+    current_threads = 0
+            
     # start inference
+    flag = False
     while True:
         for _, data_batch in enumerate(inference_loader):
+            if flag:
+                detector = new_detector
+                flag = False
             inf_start_time = time.perf_counter()
 
             images, boxes, w_batch, h_batch, img_ids = data_batch
@@ -190,16 +211,21 @@ def inference():
                 if cur_img_cnt == inf_latency_img_thresh:
                     logging.info("********************************************")
                     logging.info(f"METRIC: Edge image inference in avg of {inf_latency_img_thresh} takes: "
-                                 f"{total_inf_time / inf_latency_img_thresh:.6f} seconds")
+                                 f"{total_inf_time / inf_latency_img_thresh:.6f} seconds with {len(send_buffer)} failed")
                     cur_img_cnt = 0
                     total_inf_time = 0
 
-                if len(send_buffer) == incorrect_thresh:
+                if len(send_buffer) > incorrect_thresh:
                     # communicate with cloud to get new model checkpoint
                     logging.info("--------------------------------------------")
                     logging.info("INFO: Reach send threshold!")
                     update_start_time = time.perf_counter()
-                    detector = update_model()
+                    logging.info("the current threads is " + str(current_threads))
+                    if (current_threads  == 0):
+                        current_threads += 1
+                        thread = Thread(target=update_model)
+                        thread.start()
+                    # thread.join()
                     update_elapsed_time = time.perf_counter() - update_start_time
                     logging.info("********************************************")
                     logging.info(f"METRIC: Model update with cloud takes: {update_elapsed_time:.6f} seconds")
@@ -245,12 +271,4 @@ if __name__ == "__main__":
     inference_dataset = filter_dataset_with_class(val_dataset, 'cat', cat_ratio)
 
     send_buffer = []
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    if host == "local":
-        s.connect((socket.gethostname(), int(port)))
-    else:
-        s.connect((host, int(port)))
-    s.settimeout(30.0)
-
     inference()

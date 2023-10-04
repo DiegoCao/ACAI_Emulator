@@ -15,12 +15,7 @@ from threading import Thread
 def serverReceiveImg():
     # should be a BLOCKING function if not enough image received
     # returns batch img and annotation, assume img already normalized
-
-    # TODO: Ask - usage of the below commented lines?
     global clientsocket
-    # while True and not sock_established:
-    #     # print("Try to accept connection!")
-    #     sock_established = True
     clientsocket, address = s.accept()
     samples = receive_imgs(clientsocket)
     image_batch, box_batch, w_batch, h_batch, img_id_list = samples
@@ -30,6 +25,7 @@ def serverReceiveImg():
 def serverSendWeight(model_path):
     # send updated model parameters to the edge
     msg = modelToMessage(model_path)
+    logging.info(f"METRIC: Cloud starts sending model to edge")
     send_weights(clientsocket, msg)
     return True
 
@@ -102,7 +98,8 @@ if __name__ == "__main__":
     print("INFO: Cloud Logs are written to ", log_file)
 
     targets = logging.StreamHandler(sys.stdout), logging.FileHandler(log_file)
-    logging.basicConfig(format='%(message)s', level=logging.INFO, handlers=targets)
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO,
+                        handlers=targets, datefmt='%Y-%m-%d %H:%M:%S')
 
     logging.info("INFO: The server port is " + port)
 
@@ -118,13 +115,11 @@ if __name__ == "__main__":
 
     # define the server socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(200.0)
+    # s.settimeout(200.0)
 
     s.bind((socket.gethostname(), int(port)))
     s.listen(5)
     clientsocket = None
-    # clientsocket, address = s.accept()
-
 
     # load pretrained model
     yoloDetector = SingleStageDetector()

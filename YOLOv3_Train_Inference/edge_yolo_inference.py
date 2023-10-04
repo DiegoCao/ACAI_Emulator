@@ -68,11 +68,11 @@ def prepare_send_samples():
 
 
 def update_model():
-    global new_detector
-    global flag
-    global current_threads
+    update_start_time = time.perf_counter()
+
+    global new_detector, wait_model_update, receive_model_update
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(60.0)
+    # s.settimeout(60.0)
 
     if host == "local":
         s.connect((socket.gethostname(), int(port)))
@@ -84,17 +84,17 @@ def update_model():
     #  (but this does not mean data arrives at the cloud side?)
     #  might need send start time from edge & recv end time from cloud
     s.sendall(bytes_send)  # send all bytes
-    logging.info("INFO: Images and annotations sent to cloud")
+    logger_update.info("INFO: Images and annotations sent to cloud")
     receive_weights(s, model_updated_path)
     new_detector = SingleStageDetector()
     new_detector.load_state_dict(torch.load(model_updated_path, map_location=torch.device('cpu')))
-    logging.info("INFO: Update model at edge!")
+    logger_update.info("INFO: Update model at edge!")
     new_detector.eval()
-    logging.info(f"INFO: Updated model accuracy is [{get_accuracy(new_detector)[0]: .6f}]")
-    flag = True 
-    current_threads -= 1
-    logging.info(f"INFO: Current thread is {current_threads}")
-    # return new_detector
+    logger_update.info(f"INFO: Updated model accuracy is [{get_accuracy(new_detector)[0]: .6f}]")
+    wait_model_update, receive_model_update = False, True
+    update_elapsed_time = time.perf_counter() - update_start_time
+    logger_update.info("********************************************")
+    logger_update.info(f"METRIC: Model update with cloud takes: {update_elapsed_time:.6f} seconds")
 
 
 def get_accuracy(detector):
@@ -154,25 +154,26 @@ def inference():
     detector.load_state_dict(torch.load(model_pretrained_path, map_location=torch.device('cpu')))
     detector.eval()
 
-    logging.info(f"INFO: Updated model accuracy is [{get_accuracy(detector)[0]: .6f}]")
+    logger_update.info(f"INFO: Init model accuracy is [{get_accuracy(detector)[0]: .6f}]")
 
     init_time = time.perf_counter() - init_start_time
-    logging.info(f"INFO: Init finished, taking {init_time:.6f} seconds")
+    logger_inf.info(f"INFO: Init finished, taking {init_time:.6f} seconds")
+    logger_update.info(f"INFO: Init finished, taking {init_time:.6f} seconds")
 
     # retrieve inference time every {perf_img_thresh} images to evaluate inference latency/speed
     inf_latency_img_thresh = 10
     cur_img_cnt = 0
     total_inf_time = 0
-    global current_threads 
-    current_threads = 0
-            
+
     # start inference
-    flag = False
+    global wait_model_update, receive_model_update
+    wait_model_update, receive_model_update = False, False
     while True:
         for _, data_batch in enumerate(inference_loader):
-            if flag:
+            if receive_model_update:
                 detector = new_detector
-                flag = False
+                receive_model_update = False
+
             inf_start_time = time.perf_counter()
 
             images, boxes, w_batch, h_batch, img_ids = data_batch
@@ -201,55 +202,71 @@ def inference():
                         f_det.write('{} {:.6f} {:.2f} {:.2f} {:.2f} {:.2f}\n'.format(
                             idx_to_class[b[4].item()], b[5], b[0], b[1], b[2], b[3]))
 
-                # check if the predictions are incorrect
-                if not check_predictions(boxes, valid_box, resized_proposals, idx):
+                # add incorrect image to send_buffer when edge is not waiting for cloud update
+                if not wait_model_update and\
+                        not check_predictions(boxes, valid_box, resized_proposals, idx):
                     send_buffer.append([images[idx], boxes[idx], w_batch[idx], h_batch[idx], img_ids[idx]])
 
                 cur_img_cnt += 1
                 inf_end_time = time.perf_counter()
                 total_inf_time += (inf_end_time - inf_start_time)
                 if cur_img_cnt == inf_latency_img_thresh:
-                    logging.info("********************************************")
-                    logging.info(f"METRIC: Edge image inference in avg of {inf_latency_img_thresh} takes: "
-                                 f"{total_inf_time / inf_latency_img_thresh:.6f} seconds with {len(send_buffer)} failed")
+                    logger_inf.info("********************************************")
+                    logger_inf.info(f"METRIC: Edge image inference in avg of {inf_latency_img_thresh} takes: "
+                                 f"{total_inf_time / inf_latency_img_thresh:.6f} seconds")
                     cur_img_cnt = 0
                     total_inf_time = 0
 
-                if len(send_buffer) > incorrect_thresh:
+                if len(send_buffer) == incorrect_thresh:
                     # communicate with cloud to get new model checkpoint
-                    logging.info("--------------------------------------------")
-                    logging.info("INFO: Reach send threshold!")
-                    update_start_time = time.perf_counter()
-                    logging.info("the current threads is " + str(current_threads))
-                    if (current_threads  == 0):
-                        current_threads += 1
-                        thread = Thread(target=update_model)
-                        thread.start()
-                    # thread.join()
-                    update_elapsed_time = time.perf_counter() - update_start_time
-                    logging.info("********************************************")
-                    logging.info(f"METRIC: Model update with cloud takes: {update_elapsed_time:.6f} seconds")
+                    logger_update.info("--------------------------------------------")
+                    logger_update.info("INFO: Reach send threshold!")
+                    wait_model_update = True
+                    thread = Thread(target=update_model)
+                    thread.start()
 
             # sleep between inference requests
             # time.sleep(random.randint(1, 10) / 10)
 
 
+def setup_logger(name, log_file, level=logging.INFO):
+    """To set up as many loggers as you want"""
+
+    formatter = logging.Formatter('%(asctime)s %(message)s')
+    handler_1 = logging.StreamHandler(sys.stdout)
+    handler_2 = logging.FileHandler(log_file)
+    handler_1.setFormatter(formatter)
+    handler_2.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler_1)
+    logger.addHandler(handler_2)
+
+    return logger
+
+
 if __name__ == "__main__":
     args = sys.argv
-    if len(args) != 4:
+    if len(args) != 5:
         print("ERROR: Incorrect Number of arguments!")
         exit(1)
-    host, port, log_file = args[1], args[2], args[3]
+    host, port, log_inf_path, log_update_path = args[1], args[2], args[3], args[4]
 
-    if os.path.exists(log_file):
-        print("INFO: Old edge log file is deleted")
-        os.remove(log_file)
-    print("INFO: Edge Logs are written to ", log_file)
+    if os.path.exists(log_inf_path):
+        print("INFO: Old edge inf log file is deleted")
+        os.remove(log_inf_path)
+    if os.path.exists(log_update_path):
+        print("INFO: Old edge update log file is deleted")
+        os.remove(log_update_path)
 
-    targets = logging.StreamHandler(sys.stdout), logging.FileHandler(log_file)
-    logging.basicConfig(format='%(message)s', level=logging.INFO, handlers=targets)
+    print("INFO: Edge Logs are written to ", log_inf_path, " and ", log_update_path)
 
-    logging.info("INFO: The client host and port are " + host + " " + port)
+    logger_inf = setup_logger('logger_inf', log_inf_path)
+    logger_inf.info("INFO: The client host and port are " + host + " " + port)
+
+    logger_update = setup_logger('logger_update', log_update_path)
+    logger_update.info("INFO: The client host and port are " + host + " " + port)
 
     init_start_time = time.perf_counter()
 

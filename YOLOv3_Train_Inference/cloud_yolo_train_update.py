@@ -1,15 +1,14 @@
 # Created by Churong Ji at 4/27/23
 
-import logging
 import os
 import socket
 import sys
 import time
-from torch import optim
+from logger import setup_logger
 from model import *
-from utils import *
 from network import *
-from threading import Thread
+from utils import *
+from torch import optim
 
 
 def serverReceiveImg():
@@ -25,8 +24,12 @@ def serverReceiveImg():
 def serverSendWeight(model_path):
     # send updated model parameters to the edge
     msg = modelToMessage(model_path)
-    logging.info(f"METRIC: Cloud starts sending model to edge")
+    logger_log.info(f"METRIC: Cloud starts sending model to edge")
+    # TODO: Timestamp
+    cloud_timestamps.append(str(time.perf_counter()))
     send_weights(clientsocket, msg)
+    # TODO: Timestamp
+    cloud_timestamps.append(str(time.perf_counter()))
     return True
 
 
@@ -45,9 +48,12 @@ def DetectionRetrain(detector, learning_rate=3e-3,
     detector.train()
     retrain_counter = 0
     while True:
-        logging.info("--------------------------------------------")
+        logger_log.info("--------------------------------------------")
         retrain_data_batch = serverReceiveImg()
-        logging.info("INFO: Incorrect image batch received from the edge")
+        logger_log.info("INFO: Incorrect image batch received from the edge")
+        # TODO: Timestamp
+        global cloud_timestamps
+        cloud_timestamps = [str(time.perf_counter())]
 
         retrain_start_time = time.perf_counter()
 
@@ -66,41 +72,46 @@ def DetectionRetrain(detector, learning_rate=3e-3,
             optimizer.step()
 
             end_t = time.time()
-            logging.info('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(
+            logger_log.info('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(
                 i + 1, num_epochs, loss.item(), end_t - start_t))
 
             lr_scheduler.step()
 
-        logging.info("INFO: Retrain Round " + str(retrain_counter) + " finished")
+        logger_log.info("INFO: Retrain Round " + str(retrain_counter) + " finished")
 
         retrain_time = time.perf_counter() - retrain_start_time
-        logging.info(f"METRIC: Cloud model refine takes: {retrain_time:.6f} seconds")
+        logger_log.info(f"METRIC: Cloud model refine takes: {retrain_time:.6f} seconds")
+        # TODO: Timestamp
+        cloud_timestamps.append(str(time.perf_counter()))
 
         retrain_counter += 1
         torch.save(yoloDetector.state_dict(), updated_model_path)
-        logging.info("INFO: Model saved in " + updated_model_path)
-        # TODO: may can add communication latency measurement here as the edge part
+        logger_log.info("INFO: Model saved in " + updated_model_path)
+        # TODO: Timestamp
+        cloud_timestamps.append(str(time.perf_counter()))
         serverSendWeight(updated_model_path)
-        logging.info("INFO: Model params sent to edge")
+        logger_log.info("INFO: Model params sent to edge")
+        logger_csv.info(','.join(cloud_timestamps))
 
 
 if __name__ == "__main__":
     args = sys.argv
-    if len(args) != 3:
+    if len(args) != 4:
         print("ERROR: Incorrect Number of arguments!")
         exit(1)
-    port, log_file = args[1], args[2]
+    port, log_file, csv_file = args[1], args[2], args[3]
 
-    if os.path.exists(log_file):
-        print("INFO: Old cloud log file is deleted")
-        os.remove(log_file)
-    print("INFO: Cloud Logs are written to ", log_file)
+    for path in args[2:]:
+        if os.path.exists(path):
+            print(f"INFO: Old {path} is deleted")
+            os.remove(path)
+    print("INFO: Cloud logs are written to ", log_file)
+    print("INFO: Cloud data are written to ", csv_file)
 
-    targets = logging.StreamHandler(sys.stdout), logging.FileHandler(log_file)
-    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO,
-                        handlers=targets, datefmt='%Y-%m-%d %H:%M:%S')
-
-    logging.info("INFO: The server port is " + port)
+    # set up loggers to log or csv file
+    logger_log = setup_logger('logger_log', log_file, "log")
+    logger_csv = setup_logger('logger_csv', csv_file, "csv")
+    logger_log.info("INFO: The server port is " + port)
 
     init_start_time = time.perf_counter()
 
@@ -123,10 +134,10 @@ if __name__ == "__main__":
     # load pretrained model
     yoloDetector = SingleStageDetector()
     yoloDetector.load_state_dict(torch.load('models/yolo_detector.pt', map_location=torch.device('cpu')))
-    logging.info("INFO: Model Loaded")
+    logger_log.info("INFO: Model Loaded")
 
     init_time = time.perf_counter() - init_start_time
-    logging.info(f"INFO: Init finished, taking {init_time:.6f} seconds")
+    logger_log.info(f"INFO: Init finished, taking {init_time:.6f} seconds")
 
     # start listen to the edge, retrain and send back updated model as necessary
     DetectionRetrain(yoloDetector, learning_rate=lr, num_epochs=retrain_num_epochs, device_type=device)

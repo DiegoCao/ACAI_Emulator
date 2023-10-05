@@ -6,19 +6,19 @@
 #         observe accuracy drop after many rounds of model retrain as
 #         it overfits to certain category like cat here.
 
-import logging
 import os
 import random
 import shutil
 import socket
 import sys
 import time
-from model import *
-from dataset import *
-from utils import *
-from network import *
 from collections import deque
 from threading import Thread, Condition
+from model import *
+from dataset import *
+from logger import setup_logger
+from network import *
+from utils import *
 
 
 def get_data_loader(batch_size):
@@ -69,31 +69,43 @@ def prepare_send_samples():
 
 def update_model():
     update_start_time = time.perf_counter()
-
+    # TODO: Timestamp
+    update_timestamps = [str(update_start_time)]
     global new_detector, wait_model_update, receive_model_update
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # s.settimeout(60.0)
-
     if host == "local":
         s.connect((socket.gethostname(), int(port)))
     else:
         s.connect((host, int(port)))
+
+    # TODO: Timestamp
+    update_timestamps.append(str(time.perf_counter()))
     send_samples = prepare_send_samples()
     bytes_send = tensorToMessage(send_samples)
-    # TODO: add communication latency measurement here
-    #  (but this does not mean data arrives at the cloud side?)
-    #  might need send start time from edge & recv end time from cloud
+    logger_update.info("INFO: Start sending images and annotations")
+    # TODO: Timestamp
+    update_timestamps.append(str(time.perf_counter()))
     s.sendall(bytes_send)  # send all bytes
     logger_update.info("INFO: Images and annotations sent to cloud")
+    # TODO: Timestamp
+    update_timestamps.append(str(time.perf_counter()))
     receive_weights(s, model_updated_path)
+    # TODO: Timestamp
+    update_timestamps.append(str(time.perf_counter()))
     new_detector = SingleStageDetector()
     new_detector.load_state_dict(torch.load(model_updated_path, map_location=torch.device('cpu')))
     logger_update.info("INFO: Update model at edge!")
-    new_detector.eval()
-    logger_update.info(f"INFO: Updated model accuracy is [{get_accuracy(new_detector)[0]: .6f}]")
-    wait_model_update, receive_model_update = False, True
+    # TODO: Timestamp
+    update_timestamps.append(str(time.perf_counter()))
     update_elapsed_time = time.perf_counter() - update_start_time
     logger_update.info(f"METRIC: Model update with cloud takes: {update_elapsed_time:.6f} seconds")
+    new_detector.eval()
+    logger_update.info(f"INFO: Updated model accuracy is [{get_accuracy(new_detector)[0]: .6f}]")
+    # evaluate new model accuracy timestamp
+    update_timestamps.append(str(time.perf_counter()))
+    csv_update.info(','.join(update_timestamps))
+    wait_model_update, receive_model_update = False, True
 
 
 def get_accuracy(detector):
@@ -243,13 +255,18 @@ def inference():
                 req_wait_time += (time.perf_counter() - cur_img_req_time)
                 if cur_img_cnt == inf_latency_img_thresh:
                     logger_inf.info("--------------------------------------------")
+                    # TODO: Timestamp
+                    avg_inf_time = total_inf_time / inf_latency_img_thresh
+                    avg_wait_time = req_wait_time / inf_latency_img_thresh
+                    avg_queue_len = queue_length / inf_latency_img_thresh
+                    csv_inf.info(','.join([str(inf_end_time), str(avg_inf_time), str(avg_wait_time), str(avg_queue_len)]))
                     logger_inf.info(f"INFO: Edge inferences {inf_latency_img_thresh} images")
                     logger_inf.info(f"METRIC: Avg inference time for last {inf_latency_img_thresh} images takes: "
-                                    f"{total_inf_time / inf_latency_img_thresh:.6f} seconds")
+                                    f"{avg_inf_time:.6f} seconds")
                     logger_inf.info(f"METRIC: Avg wait time for last {inf_latency_img_thresh} requests is: "
-                                    f"{req_wait_time / inf_latency_img_thresh:.6f} seconds")
+                                    f"{avg_wait_time:.6f} seconds")
                     logger_inf.info(f"METRIC: Avg length of the request queue is: "
-                                    f"{queue_length / inf_latency_img_thresh: .2f}")
+                                    f"{avg_queue_len: .2f}")
                     cur_img_cnt = 0
                     total_inf_time = 0
                     req_wait_time = 0
@@ -264,44 +281,30 @@ def inference():
                     thread.start()
 
 
-def setup_logger(name, log_file, level=logging.INFO):
-    """To set up as many loggers as you want"""
-
-    formatter = logging.Formatter('%(asctime)s %(message)s')
-    handler_1 = logging.StreamHandler(sys.stdout)
-    handler_2 = logging.FileHandler(log_file)
-    handler_1.setFormatter(formatter)
-    handler_2.setFormatter(formatter)
-
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    logger.addHandler(handler_1)
-    logger.addHandler(handler_2)
-
-    return logger
-
-
 if __name__ == "__main__":
     args = sys.argv
-    if len(args) != 5:
+    if len(args) != 7:
         print("ERROR: Incorrect Number of arguments!")
         exit(1)
-    host, port, log_inf_path, log_update_path = args[1], args[2], args[3], args[4]
 
-    if os.path.exists(log_inf_path):
-        print("INFO: Old edge inference log file is deleted")
-        os.remove(log_inf_path)
-    if os.path.exists(log_update_path):
-        print("INFO: Old edge update log file is deleted")
-        os.remove(log_update_path)
+    for path in args[3:]:
+        if os.path.exists(path):
+            print(f"INFO: Old {path} is deleted")
+            os.remove(path)
 
-    print("INFO: Edge Logs are written to ", log_inf_path, " and ", log_update_path)
+    host, port, log_inf_path, log_update_path, csv_inf_path, csv_update_path = \
+        args[1], args[2], args[3], args[4], args[5], args[6]
 
-    logger_inf = setup_logger('logger_inf', log_inf_path)
+    print("INFO: Edge logs are written to ", log_inf_path, " and ", log_update_path)
+    print("INFO: Edge data are written to ", csv_inf_path, " and ", csv_update_path)
+
+    # set up loggers to log or csv file
+    logger_inf = setup_logger('logger_inf', log_inf_path, "log")
     logger_inf.info("INFO: The client host and port are " + host + " " + port)
-
-    logger_update = setup_logger('logger_update', log_update_path)
+    logger_update = setup_logger('logger_update', log_update_path, "log")
     logger_update.info("INFO: The client host and port are " + host + " " + port)
+    csv_inf = setup_logger('csv_inf', csv_inf_path, "csv")
+    csv_update = setup_logger('csv_update', csv_update_path, "csv")
 
     init_start_time = time.perf_counter()
 

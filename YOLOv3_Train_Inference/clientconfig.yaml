@@ -19,7 +19,7 @@ spec:
       - name: yolo-demo-client
         image: docker.io/churong/yolo:latest
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.255 9876 logs/edge_inf.log logs/edge_update.log"]
+        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.255 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv"]
         resources:
           requests:
             memory: "2048Mi"

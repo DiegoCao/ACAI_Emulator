@@ -27,8 +27,8 @@ def main():
 
     server_yaml_path = 'serverconfig.yaml'
     client_yaml_path = 'clientconfig.yaml'
-    namespace = 'yolo-test'
-    client_args_template = 'python3 /app/edge_yolo_inference.py {} 9876 logs/edge_log.txt'
+    namespace = 'yolo'
+    client_args_template = 'python3 /app/edge_yolo_inference.py {} 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv'
     server_info = {}
     client_info = {}
     app_client = client.AppsV1Api()

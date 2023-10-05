@@ -74,7 +74,6 @@ def DetectionRetrain(detector, learning_rate=3e-3,
         logging.info("INFO: Retrain Round " + str(retrain_counter) + " finished")
 
         retrain_time = time.perf_counter() - retrain_start_time
-        logging.info("********************************************")
         logging.info(f"METRIC: Cloud model refine takes: {retrain_time:.6f} seconds")
 
         retrain_counter += 1

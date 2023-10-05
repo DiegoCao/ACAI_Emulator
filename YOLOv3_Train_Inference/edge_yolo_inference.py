@@ -17,7 +17,8 @@ from model import *
 from dataset import *
 from utils import *
 from network import *
-from threading import Thread
+from collections import deque
+from threading import Thread, Condition
 
 
 def get_data_loader(batch_size):
@@ -37,12 +38,11 @@ def check_predictions(boxes, valid_box, resized_proposals, idx):
 
 def prepare_send_samples():
     global send_buffer
-    subset_buffer = send_buffer[:10]
     # update boxes
-    obj_num = [len(sample[1]) for sample in subset_buffer]
+    obj_num = [len(sample[1]) for sample in send_buffer]
     max_obj_num = max(obj_num)
-    for i in range(len(subset_buffer)):
-        box = subset_buffer[i][1]
+    for i in range(len(send_buffer)):
+        box = send_buffer[i][1]
         if len(box) < max_obj_num:
             diff = max_obj_num - len(box)
             width = box.size(dim=1)
@@ -50,11 +50,11 @@ def prepare_send_samples():
             send_buffer[i][1] = torch.cat((box, padding), 0)
 
     # stack to one tensor
-    image_batch_lis = [item[0] for item in subset_buffer]
-    box_batch_lis = [item[1] for item in subset_buffer]
-    w_batch_lis = [item[2].item() for item in subset_buffer]
-    h_batch_lis = [item[3].item() for item in subset_buffer]
-    img_id_list = [item[4] for item in subset_buffer]
+    image_batch_lis = [item[0] for item in send_buffer]
+    box_batch_lis = [item[1] for item in send_buffer]
+    w_batch_lis = [item[2].item() for item in send_buffer]
+    h_batch_lis = [item[3].item() for item in send_buffer]
+    img_id_list = [item[4] for item in send_buffer]
 
     image_batch = torch.stack(image_batch_lis, 0)
     box_batch = torch.stack(box_batch_lis, 0)
@@ -93,7 +93,6 @@ def update_model():
     logger_update.info(f"INFO: Updated model accuracy is [{get_accuracy(new_detector)[0]: .6f}]")
     wait_model_update, receive_model_update = False, True
     update_elapsed_time = time.perf_counter() - update_start_time
-    logger_update.info("********************************************")
     logger_update.info(f"METRIC: Model update with cloud takes: {update_elapsed_time:.6f} seconds")
 
 
@@ -137,6 +136,20 @@ def get_accuracy(detector):
     return accuracy, correct_cat_box
 
 
+def emulate_user_request(workload):
+    # user inference request queue which contains the request timestamps
+    global new_req_cond, req_queue
+    if workload == "Constant Low":
+        image_per_sec = 10
+        req_interval = 1 / image_per_sec
+        while True:
+            new_req_cond.acquire()
+            req_queue.append(time.perf_counter())
+            new_req_cond.notify()
+            new_req_cond.release()
+            time.sleep(req_interval)
+
+
 def inference():
     if os.path.exists(det_dir):
         shutil.rmtree(det_dir)
@@ -165,6 +178,17 @@ def inference():
     cur_img_cnt = 0
     total_inf_time = 0
 
+    # start sending inference requests to edge
+    global new_req_cond
+    new_req_cond = Condition()
+    global req_queue
+    req_queue = deque()
+    req_wait_time = 0
+    queue_length = 0
+    thread = Thread(target=emulate_user_request, args=("Constant Low",))
+    thread.start()
+    logger_inf.info("INFO: User emulator started")
+
     # start inference
     global wait_model_update, receive_model_update
     wait_model_update, receive_model_update = False, False
@@ -173,6 +197,14 @@ def inference():
             if receive_model_update:
                 detector = new_detector
                 receive_model_update = False
+
+            # make sure there is requests in the queue
+            new_req_cond.acquire()
+            while not req_queue:
+                new_req_cond.wait()
+            cur_img_req_time = req_queue.popleft()
+            queue_length += len(req_queue)
+            new_req_cond.release()
 
             inf_start_time = time.perf_counter()
 
@@ -193,8 +225,6 @@ def inference():
                 file_name = img_ids[idx].replace('.jpg', '.txt')
                 with open(os.path.join(det_dir, file_name), 'w') as f_det, \
                         open(os.path.join(gt_dir, file_name), 'w') as f_gt:
-                    # print('{}: {} GT bboxes and {} proposals'.format(
-                    #     img_ids[idx], valid_box, resized_proposals.shape[0]))
                     for b in boxes[idx][:valid_box]:
                         f_gt.write('{} {:.2f} {:.2f} {:.2f} {:.2f}\n'.format(
                             idx_to_class[b[4].item()], b[0], b[1], b[2], b[3]))
@@ -203,30 +233,35 @@ def inference():
                             idx_to_class[b[4].item()], b[5], b[0], b[1], b[2], b[3]))
 
                 # add incorrect image to send_buffer when edge is not waiting for cloud update
-                if not wait_model_update and\
+                if not wait_model_update and \
                         not check_predictions(boxes, valid_box, resized_proposals, idx):
                     send_buffer.append([images[idx], boxes[idx], w_batch[idx], h_batch[idx], img_ids[idx]])
 
                 cur_img_cnt += 1
                 inf_end_time = time.perf_counter()
                 total_inf_time += (inf_end_time - inf_start_time)
+                req_wait_time += (time.perf_counter() - cur_img_req_time)
                 if cur_img_cnt == inf_latency_img_thresh:
-                    logger_inf.info("********************************************")
-                    logger_inf.info(f"METRIC: Edge image inference in avg of {inf_latency_img_thresh} takes: "
-                                 f"{total_inf_time / inf_latency_img_thresh:.6f} seconds")
+                    logger_inf.info("--------------------------------------------")
+                    logger_inf.info(f"INFO: Edge inferences {inf_latency_img_thresh} images")
+                    logger_inf.info(f"METRIC: Avg inference time for last {inf_latency_img_thresh} images takes: "
+                                    f"{total_inf_time / inf_latency_img_thresh:.6f} seconds")
+                    logger_inf.info(f"METRIC: Avg wait time for last {inf_latency_img_thresh} requests is: "
+                                    f"{req_wait_time / inf_latency_img_thresh:.6f} seconds")
+                    logger_inf.info(f"METRIC: Avg length of the request queue is: "
+                                    f"{queue_length / inf_latency_img_thresh: .2f}")
                     cur_img_cnt = 0
                     total_inf_time = 0
+                    req_wait_time = 0
+                    queue_length = 0
 
-                if len(send_buffer) == incorrect_thresh:
+                if not wait_model_update and len(send_buffer) == incorrect_thresh:
                     # communicate with cloud to get new model checkpoint
                     logger_update.info("--------------------------------------------")
                     logger_update.info("INFO: Reach send threshold!")
                     wait_model_update = True
                     thread = Thread(target=update_model)
                     thread.start()
-
-            # sleep between inference requests
-            # time.sleep(random.randint(1, 10) / 10)
 
 
 def setup_logger(name, log_file, level=logging.INFO):
@@ -254,7 +289,7 @@ if __name__ == "__main__":
     host, port, log_inf_path, log_update_path = args[1], args[2], args[3], args[4]
 
     if os.path.exists(log_inf_path):
-        print("INFO: Old edge inf log file is deleted")
+        print("INFO: Old edge inference log file is deleted")
         os.remove(log_inf_path)
     if os.path.exists(log_update_path):
         print("INFO: Old edge update log file is deleted")

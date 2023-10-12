@@ -26,10 +26,9 @@ spec:
                 - phortx
       containers:
       - name: yolo-demo-client
-        # image: docker.pdl.cmu.edu/acai_yolo:latest
-        image: docker.io/churong/yolo:test_inference
+        image: docker.pdl.cmu.edu/acai_yolo:latest
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.255 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv"]
+        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.255 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv 10"]
         resources:
           requests:
             memory: "2048Mi"

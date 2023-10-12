@@ -100,10 +100,10 @@ def update_model():
     update_timestamps.append(str(time.perf_counter()))
     update_elapsed_time = time.perf_counter() - update_start_time
     logger_update.info(f"METRIC: Model update with cloud takes: {update_elapsed_time:.6f} seconds")
-    new_detector.eval()
-    logger_update.info(f"INFO: Updated model accuracy is [{get_accuracy(new_detector)[0]: .6f}]")
+    # new_detector.eval()
+    # logger_update.info(f"INFO: Updated model accuracy is [{get_accuracy(new_detector)[0]: .6f}]")
     # evaluate new model accuracy timestamp
-    update_timestamps.append(str(time.perf_counter()))
+    # update_timestamps.append(str(time.perf_counter()))
     csv_update.info(','.join(update_timestamps))
     wait_model_update, receive_model_update = False, True
 
@@ -148,18 +148,17 @@ def get_accuracy(detector):
     return accuracy, correct_cat_box
 
 
-def emulate_user_request(workload):
+def emulate_user_request(image_per_sec):
     # user inference request queue which contains the request timestamps
     global new_req_cond, req_queue
-    if workload == "Constant Low":
-        image_per_sec = 10
-        req_interval = 1 / image_per_sec
-        while True:
-            new_req_cond.acquire()
-            req_queue.append(time.perf_counter())
-            new_req_cond.notify()
-            new_req_cond.release()
-            time.sleep(req_interval)
+    image_per_sec = 10
+    req_interval = 1 / image_per_sec
+    while True:
+        new_req_cond.acquire()
+        req_queue.append(time.perf_counter())
+        new_req_cond.notify()
+        new_req_cond.release()
+        time.sleep(req_interval)
 
 
 def inference():
@@ -197,7 +196,7 @@ def inference():
     req_queue = deque()
     req_wait_time = 0
     queue_length = 0
-    thread = Thread(target=emulate_user_request, args=("Constant Low",))
+    thread = Thread(target=emulate_user_request, args=(req_per_sec,))
     thread.start()
     logger_inf.info("INFO: User emulator started")
 
@@ -283,7 +282,7 @@ def inference():
 
 if __name__ == "__main__":
     args = sys.argv
-    if len(args) != 7:
+    if len(args) != 8:
         print("ERROR: Incorrect Number of arguments!")
         exit(1)
 
@@ -292,8 +291,8 @@ if __name__ == "__main__":
             print(f"INFO: Old {path} is deleted")
             os.remove(path)
 
-    host, port, log_inf_path, log_update_path, csv_inf_path, csv_update_path = \
-        args[1], args[2], args[3], args[4], args[5], args[6]
+    host, port, log_inf_path, log_update_path, csv_inf_path, csv_update_path, req_per_sec = \
+        args[1], args[2], args[3], args[4], args[5], args[6], args[7]
 
     print("INFO: Edge logs are written to ", log_inf_path, " and ", log_update_path)
     print("INFO: Edge data are written to ", csv_inf_path, " and ", csv_update_path)
@@ -311,7 +310,10 @@ if __name__ == "__main__":
     thresh = 0.8
     nms_thresh = 0.3
     cat_ratio = 1
-    incorrect_thresh = 10
+    incorrect_thresh = 50
+
+    logger_inf.info("INFO: Current workload is " + req_per_sec + " requests per second")
+    logger_update.info("INFO: Incorrect image send threshold is: " + str(incorrect_thresh))
 
     if not os.path.exists("mAP"):
         os.mkdir("mAP")

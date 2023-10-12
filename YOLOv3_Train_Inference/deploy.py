@@ -33,6 +33,8 @@ def main():
     client_info = {}
     app_client = client.AppsV1Api()
     core_client = client.CoreV1Api()
+    configuration = client.Configuration()
+    api_client = client.ApiClient(configuration)
 
     with open(server_yaml_path, 'r') as f:
         deps = yaml.safe_load_all(f)
@@ -110,6 +112,27 @@ def main():
                 launched = True
                 break
         time.sleep(5)
+
+    time.sleep(20)
+
+    with open('consumption.csv', 'w') as f:
+        f.write('server_cpu,server_memory,client_cpu,client_memory\n')
+    while True:
+        api = client.CustomObjectsApi()
+        k8s_pods = api.list_namespaced_custom_object(group="metrics.k8s.io",version="v1beta1", namespace=namespace, plural="pods")
+        data = [''] * 4
+        for pod in k8s_pods['items']:
+            container = pod['containers'][0]
+            if container['name'] == 'yolo-demo-server':
+                data[0] = container['usage']['cpu'][:-1]
+                data[1] = container['usage']['memory'][:-2]
+            elif container['name'] == 'yolo-demo-client':
+                data[2] = container['usage']['cpu'][:-1]
+                data[3] = container['usage']['memory'][:-2]
+        print(','.join(data))
+        with open('consumption.csv', 'a') as f:
+            f.write(','.join(data) + '\n')
+        time.sleep(1)
 
 if __name__ == '__main__':
     main()

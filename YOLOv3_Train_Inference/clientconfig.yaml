@@ -15,15 +15,25 @@ spec:
       labels:
         app: yolo-demo-client
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodetype
+                operator: In
+                values:
+                - phortx
       containers:
       - name: yolo-demo-client
-        image: docker.pdl.cmu.edu/acai_yolo:latest
+        # image: docker.pdl.cmu.edu/acai_yolo:latest
+        image: docker.io/churong/yolo:test_inference
         command: ["/bin/sh"]
         args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.255 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv"]
         resources:
           requests:
             memory: "2048Mi"
-            cpu: "1"
+            cpu: "40"
           # limits:
           #   cpu: "40"
         ports:

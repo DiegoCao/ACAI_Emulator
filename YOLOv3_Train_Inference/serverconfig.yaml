@@ -15,6 +15,15 @@ spec:
       labels:
         app: yolo-demo-server
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodetype
+                operator: In
+                values:
+                - phortx
       containers:
       - name: yolo-demo-server
         image: docker.pdl.cmu.edu/acai_yolo:latest
@@ -23,7 +32,9 @@ spec:
         resources:
           requests:
             memory: "1024Mi"
-            cpu: "1"
+            cpu: "10"
+          # limit:
+          #   cpu: "10"
         ports:
         - containerPort: 9876
         volumeMounts:

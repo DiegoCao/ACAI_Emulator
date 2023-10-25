@@ -1,6 +1,8 @@
 import time
 import yaml
+import sys
 import os
+import shutil
 from kubernetes import client, config
 from kubernetes.stream import stream
 
@@ -22,13 +24,13 @@ def service_exists(namespace, service_name):
             return True
     return False
 
-def main():
+def main(path, rate):
     config.load_kube_config()
 
     server_yaml_path = 'serverconfig.yaml'
     client_yaml_path = 'clientconfig.yaml'
     namespace = 'yolo'
-    client_args_template = 'python3 /app/edge_yolo_inference.py {} 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv'
+    client_args_template = 'python3 /app/edge_yolo_inference.py {} 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv ' + str(rate)
     server_info = {}
     client_info = {}
     app_client = client.AppsV1Api()
@@ -105,7 +107,7 @@ def main():
         client_pods = core_client.list_namespaced_pod(namespace, label_selector="app=" + client_info['label']).items
         for pod in client_pods:
             if pod.status.pod_ip not in client_info['existing_pods'] and pod.status.phase == 'Running':
-                print("Clinet pod name:", pod.metadata.name)
+                print("Client pod name:", pod.metadata.name)
                 print("Client status:", pod.status.phase, pod.status.pod_ip)
                 client_info['pod_name'] = pod.metadata.name
                 client_info['IP'] = pod.status.pod_ip
@@ -115,7 +117,8 @@ def main():
 
     time.sleep(20)
 
-    with open('consumption.csv', 'w') as f:
+    source_folder = '/h/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs/'
+    with open(path + '/consumption.csv', 'w') as f:
         f.write('server_cpu,server_memory,client_cpu,client_memory\n')
     while True:
         api = client.CustomObjectsApi()
@@ -130,9 +133,19 @@ def main():
                 data[2] = container['usage']['cpu'][:-1]
                 data[3] = container['usage']['memory'][:-2]
         print(','.join(data))
-        with open('consumption.csv', 'a') as f:
+        with open(path + '/consumption.csv', 'a') as f:
             f.write(','.join(data) + '\n')
-        time.sleep(1)
+        # fetch all files
+        for file_name in os.listdir(source_folder):
+            # construct full file path
+            source = source_folder + file_name
+            destination = path + '/' + file_name
+            # copy only files
+            if os.path.isfile(source):
+                shutil.copy(source, destination)
+        time.sleep(5)
 
 if __name__ == '__main__':
-    main()
+    path = sys.argv[1]
+    rate = sys.argv[2]
+    main(path, rate)

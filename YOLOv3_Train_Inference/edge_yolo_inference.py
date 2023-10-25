@@ -151,8 +151,7 @@ def get_accuracy(detector):
 def emulate_user_request(image_per_sec):
     # user inference request queue which contains the request timestamps
     global new_req_cond, req_queue
-    image_per_sec = 10
-    req_interval = 1 / image_per_sec
+    req_interval = 1 / int(image_per_sec)
     while True:
         new_req_cond.acquire()
         req_queue.append(time.perf_counter())

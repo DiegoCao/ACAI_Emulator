@@ -6,12 +6,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def plot():
-    csv_folders = ['logs/experiment13/', 'logs/experiment15/']
-    # csv_folders = ['logs/experiment13/', 'logs/experiment11/', 'logs/experiment14/', 'logs/experiment12/' ]
+    # csv_folders = ['logs/experiment18/', 'logs/experiment19/', 'logs/experiment20/', 'logs/experiment21/', 'logs/experiment24/', 'logs/experiment25/' ]
+    csv_folders = ['logs/experiment16/', 'logs/experiment17/']
     cloud_dfs = []
     edge_inf_dfs = []
     edge_update_dfs = []
     configs = []
+    progresses = []
     for csv_folder in csv_folders:
         with open(csv_folder + 'comment.txt') as f:
             text = f.readline()[:-1]
@@ -32,32 +33,48 @@ def plot():
         cloud_dfs.append(cloud_df)
         edge_inf_dfs.append(edge_inf_df)
         edge_update_dfs.append(edge_update_df)
+        progresses.append(edge_inf_df['processed images'].iloc[-1]/edge_inf_df['end_time'].iloc[-1])
     for edge_inf_df in edge_inf_dfs:
         plt.plot(edge_inf_df['end_time'], edge_inf_df[['avg_inf_time']], marker='.')
     plt.legend(configs)
     plt.xlabel('Time(s)')
-    plt.title('Average Inference Time under Different Settings(s)')
+    plt.ylabel('Time(s)')
+    plt.title('Average Inference Time under Different Settings')
     plt.savefig('plots/avg_inf.png')
+    plt.clf()
+    edge_inf_df = edge_inf_dfs[0]
+    plt.plot(edge_inf_df['end_time'], edge_inf_df[['avg_inf_time']], marker='.')
+    for _, row in edge_update_dfs[0].iterrows():
+        if row['update_start'] > 400:
+            break
+        plt.axvspan(row['send_end'], row['update_end'], color = 'grey', alpha=0.2)
+    plt.xlabel('Time(s)')
+    plt.ylabel('Time(s)')
+    plt.title('Average Inference Time under Different Settings')
+    plt.savefig('plots/avg_inf_updates.png')
     plt.clf()
     for edge_inf_df in edge_inf_dfs:
         plt.plot(edge_inf_df['end_time'], edge_inf_df[['avg_wait_time']], marker='.')
     plt.legend(configs)
     plt.xlabel('Time(s)')
-    plt.title('Average Waiting Time under Different Settings(s)')
+    plt.ylabel('Time(s)')
+    plt.title('Average Waiting Time under Different Settings')
     plt.savefig('plots/avg_wait.png')
     plt.clf()
     for edge_inf_df in edge_inf_dfs:
         plt.plot(edge_inf_df['end_time'], edge_inf_df[['avg_queue_len']], marker='.')
     plt.legend(configs)
     plt.xlabel('Time(s)')
-    plt.title('Average Queue Length under Different Settings(s)')
+    plt.ylabel('Queue Length')
+    plt.title('Average Queue Length under Different Settings')
     plt.savefig('plots/avg_queue.png')
     plt.clf()
     for edge_inf_df in edge_inf_dfs:
         plt.plot(edge_inf_df['end_time'], edge_inf_df[['processed images']], marker='.')
     plt.legend(configs)
     plt.xlabel('Time(s)')
-    plt.title('Processed Images under Different Settings(s)')
+    plt.ylabel('#Processed Images')
+    plt.title('Processed Images under Different Settings')
     plt.savefig('plots/processed.png')
     plt.clf()
     edge_update_df_means = []
@@ -73,9 +90,10 @@ def plot():
     edge_update_time.index = configs
     print(edge_update_time)
     ax = edge_update_time.plot.bar(stacked = True)
-    ax.set_title('Edge Average Update Time(s)')
-    plt.xticks(rotation=0)
-    # plt.subplots_adjust(bottom=0.3)
+    plt.ylabel('Time(s)')
+    ax.set_title('Edge Average Update Time')
+    plt.xticks(rotation=45)
+    plt.subplots_adjust(bottom=0.2)
     ax.figure.savefig('plots/edge_update.png')
     plt.clf()
     cloud_df_means = []
@@ -90,14 +108,28 @@ def plot():
     cloud_update_time.index = configs
     print(cloud_update_time)
     ax = cloud_update_time.plot.bar(stacked = True)
-    ax.set_title('Cloud Average Update Time(s)')
-    plt.xticks(rotation=0)
+    plt.ylabel('Time(s)')
+    ax.set_title('Cloud Average Update Time')
+    plt.xticks(rotation=45)
+    plt.subplots_adjust(bottom=0.2)
     ax.figure.savefig('plots/cloud_update.png')
     plt.clf()
     ax = cloud_update_time[['New Model Save Time', 'Prepare Send Img Time', 'Msg Sent Time']].plot.bar(stacked = True)
     ax.set_title('Cloud Average Update Time Without Model Refine(s)')
-    plt.xticks(rotation=0)
+    plt.xticks(rotation=45)
+    plt.subplots_adjust(bottom=0.2)
     ax.figure.savefig('plots/cloud_update_no_refine.png')
+    plt.clf()
+    # cpus=[22,20,16,12,8,4]
+    # x=np.array(cpus)
+    # y=np.array(progresses)
+    # a, b = np.polyfit(x,y,1)
+    # plt.scatter(x, y)
+    # plt.plot(x, x*a+b)
+    # plt.title('Image Process Rates vs. Edge CPU Cores Limit')
+    # plt.ylabel('Process Rate(#Images/s)')
+    # plt.xlabel('#CPU Cores Limit on Edge')
+    # plt.savefig('plots/rate.png')
     return
 
 

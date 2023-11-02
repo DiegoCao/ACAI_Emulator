@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: cpu-client-pod
+  name: gpu-client-pod
   namespace: bwtest
 spec:
   containers:
@@ -11,9 +11,9 @@ spec:
       args: [ "while true; do sleep 300000000; done;" ]
       resources:
         limits:
-          nvidia.com/gpu: 0
+          nvidia.com/gpu: 1
       ports:
-        - containerPort: 8901
+        - containerPort: 8902
   restartPolicy: Never
 
 
@@ -28,4 +28,4 @@ spec:
   ports:
   - protocol: TCP
     port: 8901
-    targetPort: 5210
+    targetPort: 5211

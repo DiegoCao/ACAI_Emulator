@@ -1,14 +1,13 @@
 apiVersion: chaos-mesh.org/v1alpha1
 kind: NetworkChaos
 metadata:
-  name: delay
+  name: duplicate
 spec:
-  action: delay
+  action: duplicate
   mode: one
   selector:
     namespaces:
       - bwtest
-  delay:
-    latency: '0ms'
+  duplicate:
+    duplicate: '100'
     correlation: '100'
-    jitter: '0ms'

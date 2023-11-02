@@ -9,6 +9,6 @@ spec:
     namespaces:
       - bwtest
   bandwidth:
-    rate: '1mbps'
+    rate: '80000mbps'
     limit: 20971520
-    buffer: 10000
+    buffer: 100000

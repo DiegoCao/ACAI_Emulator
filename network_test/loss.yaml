@@ -1,14 +1,13 @@
 apiVersion: chaos-mesh.org/v1alpha1
 kind: NetworkChaos
 metadata:
-  name: delay
+  name: loss
 spec:
-  action: delay
+  action: loss
   mode: one
   selector:
     namespaces:
       - bwtest
-  delay:
-    latency: '0ms'
+  loss:
+    loss: '40'
     correlation: '100'
-    jitter: '0ms'

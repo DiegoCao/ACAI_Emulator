@@ -74,11 +74,12 @@ def update_model():
     global new_detector, wait_model_update, receive_model_update
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # s.settimeout(60.0)
+    logger_update.info("TRY TO CONNECT")
     if host == "local":
         s.connect((socket.gethostname(), int(port)))
     else:
         s.connect((host, int(port)))
-
+    logger_update.info("CONNECT SUCCESS")
     # TODO: Timestamp
     update_timestamps.append(str(time.perf_counter()))
     send_samples = prepare_send_samples()
@@ -281,17 +282,17 @@ def inference():
 
 if __name__ == "__main__":
     args = sys.argv
-    if len(args) != 8:
+    if len(args) != 9:
         print("ERROR: Incorrect Number of arguments!")
         exit(1)
 
-    for path in args[3:]:
+    for path in args[3:7]:
         if os.path.exists(path):
             print(f"INFO: Old {path} is deleted")
             os.remove(path)
 
-    host, port, log_inf_path, log_update_path, csv_inf_path, csv_update_path, req_per_sec = \
-        args[1], args[2], args[3], args[4], args[5], args[6], args[7]
+    host, port, log_inf_path, log_update_path, csv_inf_path, csv_update_path, req_per_sec, edge_id = \
+        args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]
 
     print("INFO: Edge logs are written to ", log_inf_path, " and ", log_update_path)
     print("INFO: Edge data are written to ", csv_inf_path, " and ", csv_update_path)
@@ -314,16 +315,23 @@ if __name__ == "__main__":
     logger_inf.info("INFO: Current workload is " + req_per_sec + " requests per second")
     logger_update.info("INFO: Incorrect image send threshold is: " + str(incorrect_thresh))
 
-    if not os.path.exists("mAP"):
-        os.mkdir("mAP")
-    if not os.path.exists("mAP/input"):
-        os.mkdir("mAP/input")
-    det_dir = 'mAP/input/detection-results'
-    gt_dir = 'mAP/input/ground-truth'
-    model_pretrained_path = 'models/yolo_pretrained_detector_0.01cat_2500.pt'
-    model_updated_path = 'models/yolo_updated_edge_detector.pt'
+    mAP_path = os.path.join("mAP", str(edge_id))
+    if not os.path.exists(mAP_path):
+        os.mkdir(mAP_path)
+    input_path = os.path.join(mAP_path, "input")
+    if not os.path.exists(input_path):
+        os.mkdir(input_path)
+    det_dir = os.path.join(mAP_path, "input/detection-results")
+    gt_dir = os.path.join(mAP_path, "input/ground-truth")
 
-    val_dataset = get_pascal_voc2007_data('content', 'val')
+    model_path = os.path.join("models", str(edge_id))
+    model_pretrained_path = os.path.join(model_path, "yolo_pretrained_detector_0.01cat_2500.pt")
+    model_updated_path = os.path.join(model_path, "yolo_updated_edge_detector.pt")
+
+    data_path = 'content/' + str(edge_id)
+    if not os.path.exists(data_path):
+        logger_inf.info("ERROR: Image folder does not exist!")
+    val_dataset = get_pascal_voc2007_data(data_path, 'val')
     inference_dataset = filter_dataset_with_class(val_dataset, 'cat', cat_ratio)
 
     send_buffer = []

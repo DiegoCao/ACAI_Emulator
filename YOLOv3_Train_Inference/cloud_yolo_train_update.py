@@ -3,7 +3,10 @@
 import os
 import socket
 import sys
+import threading
 import time
+import torch
+
 from logger import setup_logger
 from model import *
 from network import *
@@ -11,27 +14,46 @@ from utils import *
 from torch import optim
 
 
-def serverReceiveImg():
-    # should be a BLOCKING function if not enough image received
-    # returns batch img and annotation, assume img already normalized
-    global client_socket
-    client_socket, address = server_socket.accept()
+def serverReceiveImg(client_socket):
+    # assume img already normalized
     samples = receive_imgs(client_socket)
-    image_batch, box_batch, w_batch, h_batch, img_id_list = samples
-    return image_batch, box_batch, w_batch, h_batch, img_id_list
+    global img_buf_cond, incorrect_img_buf
+    img_buf_cond.acquire()
+    incorrect_img_buf.append(samples)
+    # TODO: box size can vary - decide whether to concat for gpu and more realistic training
+    # if incorrect_img_buf:
+    #     # image_batch, box_batch, w_batch, h_batch, img_id_list = samples
+    #     # print(image_batch.size())
+    #     print("SAMPLE SIZE: ", len(samples))
+    #     for i in range(len(samples)):
+    #         print(incorrect_img_buf[i].size(), samples[i].size())
+    #         temp = torch.cat([incorrect_img_buf[i], samples[i]], dim=0)
+    #         incorrect_img_buf[i] = temp
+    # else:
+    #     incorrect_img_buf = list(samples)
+
+    logger_log.info("INFO: Receive incorrect img batch from one client")
+    clients_lock.acquire()
+    global next_clients
+    next_clients.append(client_socket)
+    clients_lock.release()
+    img_buf_cond.notify()
+    img_buf_cond.release()
 
 
-def serverSendWeight(model_path):
+def serverSendWeight(client_socket, msg):
     # send updated model parameters to the edge
-    msg = modelToMessage(model_path)
-    logger_log.info(f"METRIC: Cloud starts sending model to edge")
-    # TODO: Timestamp
-    cloud_timestamps.append(str(time.perf_counter()))
     send_weights(client_socket, msg)
-    # TODO: Timestamp
-    cloud_timestamps.append(str(time.perf_counter()))
+    client_socket.close()
     return True
 
+
+def accept_clients():
+    while True:
+        client_socket, addr = server_socket.accept()
+        logger_log.info("INFO: Accept a new client socket connection")
+        client_receive_thread = threading.Thread(target=serverReceiveImg, args=(client_socket,))
+        client_receive_thread.start()
 
 def DetectionRetrain(detector, learning_rate=3e-3,
                      learning_rate_decay=1, num_epochs=20, device_type='cpu'):
@@ -49,33 +71,47 @@ def DetectionRetrain(detector, learning_rate=3e-3,
     retrain_counter = 0
     while True:
         logger_log.info("--------------------------------------------")
-        retrain_data_batch = serverReceiveImg()
-        logger_log.info("INFO: Incorrect image batch received from the edge")
+        img_buf_cond.acquire()
+        global incorrect_img_buf, cur_clients, next_clients
+        # while not incorrect_img_buf or incorrect_img_buf[0].size(dim=0) < 100:
+        while len(incorrect_img_buf) < 2:
+            img_buf_cond.wait()
+        # TODO: IF DEEPCOPY NEEDED?
+        clients_lock.acquire()
+        retrain_data_batches = incorrect_img_buf
+        incorrect_img_buf = []
+        cur_clients = next_clients
+        next_clients = []
+        clients_lock.release()
+        img_buf_cond.release()
+
+        logger_log.info("INFO: Retrain using " + str(len(retrain_data_batches) *
+                                                     retrain_data_batches[0][0].size(dim=0)) + " incorrect images")
         # TODO: Timestamp
-        global cloud_timestamps
         cloud_timestamps = [str(time.perf_counter())]
 
         retrain_start_time = time.perf_counter()
+        # TODO: consider change to one batch training
+        for cur_batch in retrain_data_batches:
+            for i in range(num_epochs):
+                start_t = time.time()
 
-        for i in range(num_epochs):
-            start_t = time.time()
+                images, boxes, w_batch, h_batch, _ = cur_batch
+                resized_boxes = coord_trans(boxes, w_batch, h_batch, mode='p2a')
+                if device == 'gpu':
+                    images = images.to(**to_float_cuda)
+                    resized_boxes = resized_boxes.to(**to_float_cuda)
 
-            images, boxes, w_batch, h_batch, _ = retrain_data_batch
-            resized_boxes = coord_trans(boxes, w_batch, h_batch, mode='p2a')
-            if device == 'gpu':
-                images = images.to(**to_float_cuda)
-                resized_boxes = resized_boxes.to(**to_float_cuda)
+                loss = detector(images, resized_boxes)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-            loss = detector(images, resized_boxes)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                end_t = time.time()
+                logger_log.info('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(
+                    i + 1, num_epochs, loss.item(), end_t - start_t))
 
-            end_t = time.time()
-            logger_log.info('(Epoch {} / {}) loss: {:.4f} time per epoch: {:.1f}s'.format(
-                i + 1, num_epochs, loss.item(), end_t - start_t))
-
-            lr_scheduler.step()
+                lr_scheduler.step()
 
         logger_log.info("INFO: Retrain Round " + str(retrain_counter) + " finished")
 
@@ -89,8 +125,15 @@ def DetectionRetrain(detector, learning_rate=3e-3,
         logger_log.info("INFO: Model saved in " + updated_model_path)
         # TODO: Timestamp
         cloud_timestamps.append(str(time.perf_counter()))
-        serverSendWeight(updated_model_path)
-        logger_log.info("INFO: Model params sent to edge")
+
+        logger_log.info("INFO: Cloud starts sending model to edge")
+        msg = modelToMessage(updated_model_path)
+        clients_lock.acquire()
+        for client_socket in cur_clients:
+            client_send_thread = threading.Thread(target=serverSendWeight, args=(client_socket, msg,))
+            client_send_thread.start()
+        logger_log.info("INFO: " + str(len(cur_clients)) + " threads spawned to send model params sent to edges")
+        clients_lock.release()
         logger_csv.info(','.join(cloud_timestamps))
 
 
@@ -129,7 +172,6 @@ if __name__ == "__main__":
 
     server_socket.bind((socket.gethostname(), int(port)))
     server_socket.listen(5)
-    client_socket = None
 
     # load pretrained model
     yoloDetector = SingleStageDetector()
@@ -138,6 +180,13 @@ if __name__ == "__main__":
 
     init_time = time.perf_counter() - init_start_time
     logger_log.info(f"INFO: Init finished, taking {init_time:.6f} seconds")
+
+    cur_clients, next_clients = [], []
+    clients_lock = threading.Lock()
+    incorrect_img_buf = []
+    img_buf_cond = threading.Condition()
+    accept_thread = threading.Thread(target=accept_clients)
+    accept_thread.start()
 
     # start listen to the edge, retrain and send back updated model as necessary
     DetectionRetrain(yoloDetector, learning_rate=lr, num_epochs=retrain_num_epochs, device_type=device)

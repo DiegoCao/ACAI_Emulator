@@ -294,6 +294,13 @@ if __name__ == "__main__":
     host, port, log_inf_path, log_update_path, csv_inf_path, csv_update_path, req_per_sec, edge_id = \
         args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]
 
+    log_root = os.path.join("logs", str(edge_id))
+    if not os.path.exists(log_root):
+        os.mkdir(log_root)
+    log_inf_path = os.path.join(log_root, log_inf_path)
+    log_update_path = os.path.join(log_root, log_update_path)
+    csv_inf_path = os.path.join(log_root, csv_inf_path)
+    csv_update_path = os.path.join(log_root, csv_update_path)
     print("INFO: Edge logs are written to ", log_inf_path, " and ", log_update_path)
     print("INFO: Edge data are written to ", csv_inf_path, " and ", csv_update_path)
 

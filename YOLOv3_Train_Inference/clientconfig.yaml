@@ -29,7 +29,7 @@ spec:
         # image: docker.pdl.cmu.edu/acai_yolo:v2
         image: docker.io/churong/yolo:v2
         command: ["/bin/sh"]
-        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.255 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv 10 1"]
+        args: ["-c", "python3 /app/edge_yolo_inference.py 10.233.100.255 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 1"]
         resources:
           requests:
             memory: "2048Mi"

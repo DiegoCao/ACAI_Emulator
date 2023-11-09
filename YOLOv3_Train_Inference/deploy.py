@@ -3,6 +3,7 @@ import yaml
 import sys
 import os
 import shutil
+import json
 from kubernetes import client, config
 from kubernetes.stream import stream
 
@@ -24,19 +25,14 @@ def service_exists(namespace, service_name):
             return True
     return False
 
-def main(path, rate):
-    config.load_kube_config()
+def generate_yamls(template_yaml_path, config_path):
+    yamls = []
+    config = json.load(open(config_path))
+    print(config)
+    return yamls
 
-    server_yaml_path = 'serverconfig.yaml'
-    client_yaml_path = 'clientconfig.yaml'
-    namespace = 'yolo'
-    client_args_template = 'python3 /app/edge_yolo_inference.py {} 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv ' + str(rate)
+def launch_server(server_yaml_path, namespace, core_client, app_client):
     server_info = {}
-    client_info = {}
-    app_client = client.AppsV1Api()
-    core_client = client.CoreV1Api()
-    configuration = client.Configuration()
-    api_client = client.ApiClient(configuration)
 
     with open(server_yaml_path, 'r') as f:
         deps = yaml.safe_load_all(f)
@@ -77,6 +73,11 @@ def main(path, rate):
                 break
         time.sleep(5)
 
+    return server_info
+
+def launch_client(client_args_template, server_info, client_yaml_path, namespace, core_client, app_client):
+    client_info = {}
+
     with open(client_yaml_path, 'r') as f:
         deps = yaml.safe_load_all(f)
         try:
@@ -115,6 +116,26 @@ def main(path, rate):
                 break
         time.sleep(5)
 
+    return client_info
+
+def main(path, rate):
+    config.load_kube_config()
+
+    server_yaml_path = 'serverconfig.yaml'
+    client_yaml_path = 'clientconfig.yaml'
+    namespace = 'yolo'
+    client_args_template = 'python3 /app/edge_yolo_inference.py {} 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv ' + str(rate)
+    app_client = client.AppsV1Api()
+    core_client = client.CoreV1Api()
+    configuration = client.Configuration()
+
+    template_yaml_path = 'yaml_templates/config.yaml'
+    config_path = 'user_config.json'
+    yamls = generate_yamls(template_yaml_path, config_path)
+
+    server_info = launch_server(server_yaml_path, namespace, core_client, app_client)
+    client_info = launch_client(client_args_template, server_info, client_yaml_path, namespace, core_client, app_client)
+
     time.sleep(20)
 
     source_folder = '/h/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs/'
@@ -135,12 +156,10 @@ def main(path, rate):
         print(','.join(data))
         with open(path + '/consumption.csv', 'a') as f:
             f.write(','.join(data) + '\n')
-        # fetch all files
+        
         for file_name in os.listdir(source_folder):
-            # construct full file path
             source = source_folder + file_name
             destination = path + '/' + file_name
-            # copy only files
             if os.path.isfile(source):
                 shutil.copy(source, destination)
         time.sleep(5)

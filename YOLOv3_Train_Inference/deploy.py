@@ -4,6 +4,8 @@ import sys
 import os
 import shutil
 import json
+import pathlib
+import re
 from kubernetes import client, config
 from kubernetes.stream import stream
 
@@ -75,19 +77,31 @@ def launch_server(server_yaml_path, namespace, core_client, app_client):
 
     return server_info
 
-def launch_client(client_args_template, server_info, client_yaml_path, namespace, core_client, app_client):
+def launch_client(server_info, client_yaml_path, 
+                    namespace, core_client, app_client, client_id):
     client_info = {}
 
     with open(client_yaml_path, 'r') as f:
         deps = yaml.safe_load_all(f)
         try:
             for dep in deps:
+                dep['metadata']['name'] = dep['metadata']['name'].format(client_id)
                 name = dep['metadata']['name']
                 if dep['kind'] == 'Deployment':
                     client_info['name'] = name
                     client_info['label'] = dep['metadata']['labels']['app']
                     client_info['existing_pods'] = []
-                    dep['spec']['template']['spec']['containers'][0]['args'][1] = client_args_template.format(server_info['IP'])
+                    dep['spec']['template']['spec']['containers'][0]['args'][1] = \
+                          dep['spec']['template']['spec']['containers'][0]['args'][1].format(server_info['IP'], client_id)
+                    for volume in dep['spec']['template']['spec']['volumes']:
+                        volume['nfs']['path'] = volume['nfs']['path'] + "/" + str(client_id)
+                        user_path = re.sub('/users/', '/h/', volume['nfs']['path'])
+                        pathlib.Path(user_path).mkdir(parents=True, exist_ok=True)
+                        os.chmod(user_path, 0o777)
+                        if volume['name'] == 'dataset-volume':
+                            if not os.listdir(user_path):
+                                shutil.copy2('/h/churongj/ACAI_Emulator/YOLOv3_Train_Inference/content/VOCtrainval_06-Nov-2007.tar', 
+                                                user_path)
                     if deployment_exists(namespace, name):
                         client_pods = core_client.list_namespaced_pod(namespace, label_selector="app=" + client_info['label']).items
                         for pod in client_pods:
@@ -118,13 +132,12 @@ def launch_client(client_args_template, server_info, client_yaml_path, namespace
 
     return client_info
 
-def main(path, rate):
+def main(path, client_num):
     config.load_kube_config()
 
     server_yaml_path = 'serverconfig.yaml'
     client_yaml_path = 'clientconfig.yaml'
     namespace = 'yolo'
-    client_args_template = 'python3 /app/edge_yolo_inference.py {} 9876 logs/edge_inf.log logs/edge_update.log logs/edge_inf.csv logs/edge_update.csv ' + str(rate)
     app_client = client.AppsV1Api()
     core_client = client.CoreV1Api()
     configuration = client.Configuration()
@@ -134,7 +147,8 @@ def main(path, rate):
     yamls = generate_yamls(template_yaml_path, config_path)
 
     server_info = launch_server(server_yaml_path, namespace, core_client, app_client)
-    client_info = launch_client(client_args_template, server_info, client_yaml_path, namespace, core_client, app_client)
+    for i in range(client_num):
+        client_info = launch_client(server_info, client_yaml_path, namespace, core_client, app_client, i)
 
     time.sleep(20)
 
@@ -157,14 +171,21 @@ def main(path, rate):
         with open(path + '/consumption.csv', 'a') as f:
             f.write(','.join(data) + '\n')
         
-        for file_name in os.listdir(source_folder):
-            source = source_folder + file_name
-            destination = path + '/' + file_name
-            if os.path.isfile(source):
-                shutil.copy(source, destination)
+        def recursive_copy(src_folder, dest_folder):
+            for file_name in os.listdir(src_folder):
+                source = src_folder + file_name
+                if os.path.isfile(source):
+                    shutil.copy2(source, dest_folder)
+                else:
+                    sub_dest_folder = dest_folder + '/' + file_name
+                    pathlib.Path(sub_dest_folder).mkdir(parents=True, exist_ok=True)
+                    os.chmod(sub_dest_folder, 0o777)
+                    recursive_copy(source + '/', sub_dest_folder)
+
+        recursive_copy(source_folder, path)
         time.sleep(5)
 
 if __name__ == '__main__':
     path = sys.argv[1]
-    rate = sys.argv[2]
-    main(path, rate)
+    client_num = int(sys.argv[2])
+    main(path, client_num)

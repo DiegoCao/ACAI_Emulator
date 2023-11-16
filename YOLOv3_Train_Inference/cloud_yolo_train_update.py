@@ -73,8 +73,8 @@ def DetectionRetrain(detector, learning_rate=3e-3,
         logger_log.info("--------------------------------------------")
         img_buf_cond.acquire()
         global incorrect_img_buf, cur_clients, next_clients
-        # while not incorrect_img_buf or incorrect_img_buf[0].size(dim=0) < 100:
-        while len(incorrect_img_buf) < 2:
+        while not incorrect_img_buf:
+        # while len(incorrect_img_buf) < 2:
             img_buf_cond.wait()
         # TODO: IF DEEPCOPY NEEDED?
         clients_lock.acquire()

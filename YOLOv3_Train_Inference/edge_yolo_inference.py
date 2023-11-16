@@ -294,13 +294,32 @@ if __name__ == "__main__":
     host, port, log_inf_path, log_update_path, csv_inf_path, csv_update_path, req_per_sec, edge_id = \
         args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]
 
-    log_root = os.path.join("logs", str(edge_id))
+    log_root = "logs"
+    mAP_root = "mAP"
+    model_root = "models"
+    data_root = "content"
+    if host == "local":
+        log_root = os.path.join(log_root, str(edge_id))
+        mAP_root = os.path.join(mAP_root, str(edge_id))
+        model_root = os.path.join(model_root, str(edge_id))
+        data_root = os.path.join(data_root, str(edge_id))
     if not os.path.exists(log_root):
         os.mkdir(log_root)
+    if not os.path.exists(mAP_root):
+        os.mkdir(mAP_root)
+    if not os.path.exists(data_root):
+        print("ERROR: Image folder does not exist!")
+        exit(1)
+
     log_inf_path = os.path.join(log_root, log_inf_path)
     log_update_path = os.path.join(log_root, log_update_path)
     csv_inf_path = os.path.join(log_root, csv_inf_path)
     csv_update_path = os.path.join(log_root, csv_update_path)
+    delete_if_exists = [log_inf_path, log_update_path, csv_inf_path, csv_update_path]
+    for file in delete_if_exists:
+        if os.path.exists(file):
+            print(f"INFO: Old {file} is deleted")
+            os.remove(file)
     print("INFO: Edge logs are written to ", log_inf_path, " and ", log_update_path)
     print("INFO: Edge data are written to ", csv_inf_path, " and ", csv_update_path)
 
@@ -322,23 +341,15 @@ if __name__ == "__main__":
     logger_inf.info("INFO: Current workload is " + req_per_sec + " requests per second")
     logger_update.info("INFO: Incorrect image send threshold is: " + str(incorrect_thresh))
 
-    mAP_path = os.path.join("mAP", str(edge_id))
-    if not os.path.exists(mAP_path):
-        os.mkdir(mAP_path)
-    input_path = os.path.join(mAP_path, "input")
+    input_path = os.path.join(mAP_root, "input")
     if not os.path.exists(input_path):
         os.mkdir(input_path)
-    det_dir = os.path.join(mAP_path, "input/detection-results")
-    gt_dir = os.path.join(mAP_path, "input/ground-truth")
+    det_dir = os.path.join(mAP_root, "input/detection-results")
+    gt_dir = os.path.join(mAP_root, "input/ground-truth")
 
-    model_path = os.path.join("models", str(edge_id))
-    model_pretrained_path = os.path.join(model_path, "yolo_pretrained_detector_0.01cat_2500.pt")
-    model_updated_path = os.path.join(model_path, "yolo_updated_edge_detector.pt")
-
-    data_path = 'content/' + str(edge_id)
-    if not os.path.exists(data_path):
-        logger_inf.info("ERROR: Image folder does not exist!")
-    val_dataset = get_pascal_voc2007_data(data_path, 'val')
+    model_pretrained_path = os.path.join(model_root, "yolo_pretrained_detector_0.01cat_2500.pt")
+    model_updated_path = os.path.join(model_root, "yolo_updated_edge_detector.pt")
+    val_dataset = get_pascal_voc2007_data(data_root, 'val')
     inference_dataset = filter_dataset_with_class(val_dataset, 'cat', cat_ratio)
 
     send_buffer = []

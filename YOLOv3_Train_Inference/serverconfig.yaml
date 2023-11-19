@@ -27,7 +27,7 @@ spec:
       containers:
       - name: yolo-demo-server
         # image: docker.pdl.cmu.edu/acai_yolo:latest
-        image: docker.io/churong/yolo:multi-pod
+        image: docker.io/churong/yolo:multi-pod-no-limit-retrain
         # image: docker.pdl.cmu.edu/acaiyu/yolo:latest
         command: ["/bin/sh"]
         args: ["-c", "python3 /app/cloud_yolo_train_update.py 9876 logs/cloud.log logs/cloud.csv"]

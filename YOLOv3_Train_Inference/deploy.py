@@ -191,8 +191,6 @@ def launch_client(server_info, client_yaml_path,
 def main(path, client_num, containers_names):
     config.load_kube_config()
 
-    server_yaml_path = 'serverconfig.yaml'
-    client_yaml_path = 'clientconfig.yaml'
     namespace = 'yolo'
     app_client = client.AppsV1Api()
     core_client = client.CoreV1Api()

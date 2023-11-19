@@ -12,11 +12,11 @@
                 "requests":
                 {
                     "memory": "2048Mi", 
-                    "cpu": "4"
+                    "cpu": "20"
                 },
                  "limits":
                 {
-                    "cpu": "4"
+                    "cpu": "20"
                 }
             },
             "volumeMounts": [
@@ -43,11 +43,11 @@
                 "requests":
                 {
                     "memory": "2048Mi", 
-                    "cpu": "4"
+                    "cpu": "20"
                 },
             "limits":
                 {
-                    "cpu": "4"
+                    "cpu": "20"
                 }
             },
             "volumeMounts": [
@@ -83,11 +83,11 @@
                 "requests":
                 {
                     "memory": "2048Mi", 
-                    "cpu": "4"
+                    "cpu": "20"
                 },
             "limits":
                 {
-                    "cpu": "4"
+                    "cpu": "20"
                 }
             },
             "volumeMounts": [

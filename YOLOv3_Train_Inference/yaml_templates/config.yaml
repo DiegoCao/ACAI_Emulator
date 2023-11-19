@@ -23,7 +23,7 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                - phodgx2
+                - phortx1
       containers:
       - name: default
         ports:

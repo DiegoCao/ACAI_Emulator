@@ -3,7 +3,7 @@
         {
             "name": "yolo-server",
             "category": "server",
-            "image": "docker.io/churong/yolo:multi-pod",
+            "image": "docker.io/churong/yolo:multi-pod-no-limit-retrain",
             "command": ["/bin/sh"],
             "args": ["-c", "python3 /app/cloud_yolo_train_update.py 9876 logs/cloud.log logs/cloud.csv"],
             "port" : "9876",
@@ -34,7 +34,7 @@
         {
             "name": "yolo-client-0",
             "category": "client",
-            "image": "docker.io/churong/yolo:multi-pod",
+            "image": "docker.io/churong/yolo:multi-pod-no-limit-retrain",
             "command": ["/bin/sh"],
             "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 0"],
             "port" : "8080",
@@ -74,7 +74,7 @@
         {
             "name": "yolo-client-1",
             "category": "client",
-            "image": "docker.io/churong/yolo:multi-pod",
+            "image": "docker.io/churong/yolo:multi-pod-no-limit-retrain",
             "command": ["/bin/sh"],
             "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 1"],
             "port" : "8080",

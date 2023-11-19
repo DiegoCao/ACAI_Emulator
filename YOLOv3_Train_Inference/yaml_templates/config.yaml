@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: default
+  namespace: default
+  labels:
+    app: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: default
+  template:
+    metadata:
+      labels:
+        app: default
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - phortx1
+      containers:
+      - name: default
+        ports:
+        - containerPort: 8080
+      volumes:
+      - name: dataset-volume
+        nfs:
+          server: basket
+          path: /users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/content
+      - name: log-volume
+        nfs:
+          server: basket
+          path: /users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs

@@ -1,0 +1,124 @@
+{
+    "machines":[
+        {
+            "name": "yolo-server",
+            "category": "server",
+            "image": "docker.io/churong/yolo:multi-pod",
+            "command": ["/bin/sh"],
+            "args": ["-c", "python3 /app/cloud_yolo_train_update.py 9876 logs/cloud.log logs/cloud.csv"],
+            "port" : "9876",
+            "resources":
+            {
+                "requests":
+                {
+                    "memory": "2048Mi", 
+                    "cpu": "4"
+                },
+                 "limits":
+                {
+                    "cpu": "4"
+                }
+            },
+            "volumeMounts": [
+                {
+                    "name": "log-volume",
+                    "mountPath": "/app/logs",
+                    "nfs":
+                        {
+                            "server": "basket",
+                            "path": "/users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs"
+                        }
+                }
+            ]
+        },
+        {
+            "name": "yolo-client-0",
+            "category": "client",
+            "image": "docker.io/churong/yolo:multi-pod",
+            "command": ["/bin/sh"],
+            "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 0"],
+            "port" : "8080",
+            "resources":
+            {
+                "requests":
+                {
+                    "memory": "2048Mi", 
+                    "cpu": "4"
+                },
+            "limits":
+                {
+                    "cpu": "4"
+                }
+            },
+            "volumeMounts": [
+                {
+                    "name": "log-volume",
+                    "mountPath": "/app/logs",
+                    "nfs":
+                        {
+                            "server": "basket",
+                            "path": "/users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs/0"
+                        }
+                },
+                {
+                    "name": "dataset-volume",
+                    "mountPath": "/app/content",
+                    "nfs":
+                        {
+                            "server": "basket",
+                            "path": "/users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/content/0"
+                        }
+                }
+            ]
+        },
+        {
+            "name": "yolo-client-1",
+            "category": "client",
+            "image": "docker.io/churong/yolo:multi-pod",
+            "command": ["/bin/sh"],
+            "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 1"],
+            "port" : "8080",
+            "resources":
+            {
+                "requests":
+                {
+                    "memory": "2048Mi", 
+                    "cpu": "4"
+                },
+            "limits":
+                {
+                    "cpu": "4"
+                }
+            },
+            "volumeMounts": [
+                {
+                    "name": "log-volume",
+                    "mountPath": "/app/logs",
+                    "nfs":
+                        {
+                            "server": "basket",
+                            "path": "/users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs/1"
+                        }
+                },
+                {
+                    "name": "dataset-volume",
+                    "mountPath": "/app/content",
+                    "nfs":
+                        {
+                            "server": "basket",
+                            "path": "/users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/content/1"
+                        }
+                }
+            ]
+        }
+    ],
+    "connections":[
+        {
+            "node1": "yolo-server",
+            "node2": "yolo-client-0",
+            "direction": "both", 
+            "bandwidth": "50m",
+            "latency": "200m"
+        }
+    ]
+}

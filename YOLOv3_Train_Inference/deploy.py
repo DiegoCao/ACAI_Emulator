@@ -6,6 +6,7 @@ import shutil
 import json
 import pathlib
 import re
+from collections import defaultdict
 from kubernetes import client, config
 from kubernetes.stream import stream
 
@@ -129,9 +130,7 @@ def launch_server(server_yaml_path, namespace, core_client, app_client):
     return server_info
 
 def launch_client(server_info, client_yaml_path, 
-                    namespace, core_client, app_client):
-    print("Launching client: ", client_yaml_path)
-
+                    namespace, core_client, app_client, containers_names):
     client_info = {}
 
     with open(client_yaml_path, 'r') as f:
@@ -145,8 +144,12 @@ def launch_client(server_info, client_yaml_path,
                     client_info['existing_pods'] = []
                     dep['spec']['template']['spec']['containers'][0]['args'][1] = \
                           dep['spec']['template']['spec']['containers'][0]['args'][1].format(server_info['IP'])
+                    containers_names.append(dep['spec']['template']['spec']['containers'][0]['name'])
                     for volume in dep['spec']['template']['spec']['volumes']:
                         user_path = re.sub('/users/', '/h/', volume['nfs']['path'])
+                        if "log" in user_path and os.path.exists(user_path):
+                            print("removing previous edge logs")
+                            shutil.rmtree(user_path)
                         if not os.path.exists(user_path):
                             pathlib.Path(user_path).mkdir(parents=True, exist_ok=True)
                             os.chmod(user_path, 0o777)
@@ -154,6 +157,7 @@ def launch_client(server_info, client_yaml_path,
                                 if not os.listdir(user_path):
                                     shutil.copy2('/h/churongj/ACAI_Emulator/YOLOv3_Train_Inference/content/VOCtrainval_06-Nov-2007.tar', 
                                                     user_path)
+
                     if deployment_exists(namespace, name):
                         client_pods = core_client.list_namespaced_pod(namespace, label_selector="app=" + client_info['label']).items
                         for pod in client_pods:
@@ -184,12 +188,12 @@ def launch_client(server_info, client_yaml_path,
 
     return client_info
 
-def main(path):
+def main(path, client_num, containers_names):
     config.load_kube_config()
 
     server_yaml_path = 'serverconfig.yaml'
     client_yaml_path = 'clientconfig.yaml'
-    namespace = 'yolo-test'
+    namespace = 'yolo'
     app_client = client.AppsV1Api()
     core_client = client.CoreV1Api()
     configuration = client.Configuration()
@@ -200,25 +204,31 @@ def main(path):
 
     server_info = launch_server(server_yamls[0], namespace, core_client, app_client)
     for client_yaml_path in client_yamls:
-        client_info = launch_client(server_info, client_yaml_path, namespace, core_client, app_client)
+        client_info = launch_client(server_info, client_yaml_path, namespace, core_client, app_client, containers_names)
 
     time.sleep(20)
+    print(containers_names)
 
     source_folder = '/h/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs/'
     with open(path + '/consumption.csv', 'w') as f:
-        f.write('server_cpu,server_memory,client_cpu,client_memory\n')
+        line = 'server_cpu,server_memory,'
+        for i in range(client_num):
+            line += ('client_cpu_' + str(i) + ',client_memory_' + str(i))
+            line += ','
+        line += '\n'
+        f.write(line)
+
     while True:
         api = client.CustomObjectsApi()
         k8s_pods = api.list_namespaced_custom_object(group="metrics.k8s.io",version="v1beta1", namespace=namespace, plural="pods")
-        data = [''] * 4
+        data = [''] * (2 * len(containers_names))
+
         for pod in k8s_pods['items']:
             container = pod['containers'][0]
-            if container['name'] == 'yolo-demo-server':
-                data[0] = container['usage']['cpu'][:-1]
-                data[1] = container['usage']['memory'][:-2]
-            elif container['name'] == 'yolo-demo-client':
-                data[2] = container['usage']['cpu'][:-1]
-                data[3] = container['usage']['memory'][:-2]
+            idx = containers_names.index(container['name'])
+            data[idx * 2] = container['usage']['cpu'][:-1]
+            data[idx * 2 + 1] = container['usage']['memory'][:-2]
+
         print(','.join(data))
         with open(path + '/consumption.csv', 'a') as f:
             f.write(','.join(data) + '\n')
@@ -231,7 +241,7 @@ def main(path):
                 else:
                     sub_dest_folder = dest_folder + '/' + file_name
                     pathlib.Path(sub_dest_folder).mkdir(parents=True, exist_ok=True)
-                    os.chmod(sub_dest_folder, 0o777)
+                    # os.chmod(sub_dest_folder, 0o777)
                     recursive_copy(source + '/', sub_dest_folder)
 
         recursive_copy(source_folder, path)
@@ -239,4 +249,6 @@ def main(path):
 
 if __name__ == '__main__':
     path = sys.argv[1]
-    main(path)
+    client_num = int(sys.argv[2])
+    containers_names = ['yolo-server']
+    main(path, client_num, containers_names)

@@ -4,11 +4,11 @@ metadata:
   name: delay
 spec:
   action: delay
-  mode: one
+  mode: all
   selector:
     namespaces:
-      - bwtest
+      - labeltest
   delay:
-    latency: '0ms'
-    correlation: '100'
+    latency: '500ms'
+    correlation: '0'
     jitter: '0ms'

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: client-deployment-{}
-  namespace: yolo
+  namespace: yolo-test
   labels:
     app: yolo-demo-client
 spec:
@@ -23,11 +23,11 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                - phortx2
+                - phortx1
       containers:
       - name: yolo-demo-client
         # image: docker.pdl.cmu.edu/acai_yolo:v2
-        image: docker.io/churong/yolo:multi-pod
+        image: docker.io/churong/yolo:multi-pod-no-limit-retrain
         command: ["/bin/sh"]
         args: ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 {}"]
         resources:
@@ -58,7 +58,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: client-service
-  namespace: yolo
+  namespace: yolo-test
 spec:
   selector:
     app: yolo-demo-client

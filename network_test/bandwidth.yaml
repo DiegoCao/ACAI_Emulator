@@ -7,8 +7,8 @@ spec:
   mode: all
   selector:
     namespaces:
-      - bwtest
+      - labeltest
   bandwidth:
-    rate: '80000mbps'
+    rate: '20mbps'
     limit: 20971520
     buffer: 100000

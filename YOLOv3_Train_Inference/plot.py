@@ -7,16 +7,17 @@ import numpy as np
 
 def plot():
     # csv_folders = ['logs/experiment18/', 'logs/experiment19/', 'logs/experiment20/', 'logs/experiment21/', 'logs/experiment24/', 'logs/experiment25/' ]
-    csv_folders = ['logs/experiment16/', 'logs/experiment17/']
+    csv_folders = ['logs/multi01/0', 'logs/multi01/1']
     cloud_dfs = []
     edge_inf_dfs = []
     edge_update_dfs = []
     configs = []
     progresses = []
+    configs = ["default0", "default1"]
     for csv_folder in csv_folders:
-        with open(csv_folder + 'comment.txt') as f:
-            text = f.readline()[:-1]
-            configs.append(text)
+        # with open(csv_folder + 'comment.txt') as f:
+        #     text = f.readline()[:-1]
+        #     configs.append(text)
         cloud_df = pd.read_csv(csv_folder+'cloud.csv', header=None)
         cloud_df.rename(columns={0:'received', 1:'updated', 2:'saved', 3:'encoded', 4:'sent'}, inplace=True)
         cloud_start_time = cloud_df['received'].iloc[0]

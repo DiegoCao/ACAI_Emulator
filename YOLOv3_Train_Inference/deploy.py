@@ -81,7 +81,7 @@ def generate_yamls(path, template_yaml_path, config_path, namespace):
         elif machine['category'] == 'client':
             client_yamls.append(yaml_path)
 
-
+    print(server_yamls)
     return server_yamls, client_yamls, network_yamls
 
 def launch_server(server_yaml_path, namespace, core_client, app_client):
@@ -188,7 +188,7 @@ def launch_client(server_info, client_yaml_path,
 
     return client_info
 
-def main(path, client_num, containers_names):
+def main(path, containers_names):
     config.load_kube_config()
 
     server_yaml_path = 'serverconfig.yaml'
@@ -203,6 +203,7 @@ def main(path, client_num, containers_names):
     server_yamls, client_yamls, network_yamls = generate_yamls(path, template_yaml_path, config_path, namespace)
 
     server_info = launch_server(server_yamls[0], namespace, core_client, app_client)
+    client_num = len(client_yamls)
     for client_yaml_path in client_yamls:
         client_info = launch_client(server_info, client_yaml_path, namespace, core_client, app_client, containers_names)
 
@@ -249,6 +250,5 @@ def main(path, client_num, containers_names):
 
 if __name__ == '__main__':
     path = sys.argv[1]
-    client_num = int(sys.argv[2])
     containers_names = ['yolo-server']
-    main(path, client_num, containers_names)
+    main(path, containers_names)

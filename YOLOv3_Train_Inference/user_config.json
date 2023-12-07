@@ -36,7 +36,7 @@
             "category": "client",
             "image": "docker.io/churong/yolo:multi-pod-no-limit-retrain",
             "command": ["/bin/sh"],
-            "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 0"],
+            "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 1 0"],
             "port" : "8080",
             "resources":
             {
@@ -76,8 +76,8 @@
             "category": "client",
             "image": "docker.io/churong/yolo:multi-pod-no-limit-retrain",
             "command": ["/bin/sh"],
-            "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 1"],
-            "port" : "8080",
+            "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 1 1"],
+            "port" : "8081",
             "resources":
             {
                 "requests":
@@ -116,8 +116,8 @@
             "category": "client",
             "image": "docker.io/churong/yolo:multi-pod-no-limit-retrain",
             "command": ["/bin/sh"],
-            "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 10 2"],
-            "port" : "8080",
+            "args": ["-c", "python3 /app/edge_yolo_inference.py {} 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 1 2"],
+            "port" : "8082",
             "resources":
             {
                 "requests":

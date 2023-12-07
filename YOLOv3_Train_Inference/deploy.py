@@ -70,7 +70,7 @@ def generate_yamls(path, template_yaml_path, config_path, namespace):
         if machine['category'] == 'server':
             service_template['spec']['ports'] = [{'protocol': 'TCP', 'port': 9876}]
         elif machine['category'] == 'client':
-            service_template['spec']['ports'] = [{'protocol': 'TCP', 'port': 8080, 'targetPort': 9876}]
+            service_template['spec']['ports'] = [{'protocol': 'TCP', 'port': int(machine['port']), 'targetPort': 9876}]
 
         yaml_path = path + '/' + machine['name'] + '.yaml'
         with open(yaml_path, 'w') as f:

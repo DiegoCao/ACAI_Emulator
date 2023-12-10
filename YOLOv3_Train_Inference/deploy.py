@@ -81,7 +81,52 @@ def generate_yamls(path, template_yaml_path, config_path, namespace):
         elif machine['category'] == 'client':
             client_yamls.append(yaml_path)
 
-    print(server_yamls)
+    network_template = {
+        'apiVersion': 'chaos-mesh.org/v1alpha1',
+        'kind': 'NetworkChaos',
+        'metadata': {},
+        'spec': {'mode': 'all', 'selector': {'namespaces': [namespace]}}
+    }
+    bandwidth_count = 0
+    latency_count = 0
+    for connection in config['connections']:
+        connection_config = network_template
+        connection_config['spec']['selector']['labelSelectors'] = {'app': connection["node1"]}
+        connection_config['spec']['direction'] = connection["direction"]
+        connection_config['spec']['target'] = {'mode': 'all', 
+                                                'selector': {
+                                                'namespaces': [namespace],
+                                                'labelSelectors': {'app': connection["node2"]}
+                                                }}
+        if "bandwidth" in connection:
+            bandwidth_config_name = "bandwidth-" + str(bandwidth_count)
+            bandwidth_count += 1
+            connection_config = network_template
+            connection_config['spec']['action'] = 'bandwidth'
+            connection_config['metadata']['name'] = bandwidth_config_name
+            connection_config['spec']['bandwidth'] = {'rate': connection['bandwidth'], 
+                                                     'limit': 20971520, 
+                                                     'buffer': 100000}
+            yaml_path = path + '/' + bandwidth_config_name + '.yaml'
+            with open(yaml_path, 'w') as f:
+                yaml.safe_dump_all([connection_config], f)
+            network_yamls.append(yaml_path)
+            connection_config['spec'].pop('bandwidth')
+        if "latency" in connection:
+            latency_config_name = "latency-" + str(latency_count)
+            latency_count += 1
+            connection_config['spec']['action'] = 'delay'
+            connection_config['metadata']['name'] = latency_config_name
+            connection_config['spec']['delay'] = {
+                'latency': connection['latency'],
+                'correlation': '0',
+                'jitter': '0ms'
+            }
+            yaml_path = path + '/' + latency_config_name + '.yaml'
+            with open(yaml_path, 'w') as f:
+                yaml.safe_dump_all([connection_config], f)
+            network_yamls.append(yaml_path)
+
     return server_yamls, client_yamls, network_yamls
 
 def launch_server(server_yaml_path, namespace, core_client, app_client):

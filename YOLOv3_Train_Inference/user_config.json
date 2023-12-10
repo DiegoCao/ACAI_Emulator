@@ -158,7 +158,7 @@
             "node2": "yolo-client-0",
             "direction": "both",
             "bandwidth": "100mbps",
-            "latency": "200m"
+            "latency": "200ms"
         },
         {
             "node1": "yolo-server",

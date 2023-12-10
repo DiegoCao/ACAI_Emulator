@@ -142,16 +142,9 @@ def launch_server(server_yaml_path, namespace, core_client, app_client):
                     server_info['name'] = name
                     server_info['label'] = dep['metadata']['labels']['app']
                     server_info['existing_pods'] = []
-                    if deployment_exists(namespace, name):
-                        server_pods = core_client.list_namespaced_pod(namespace, label_selector="app=" + server_info['label']).items
-                        for pod in server_pods:
-                            server_info['existing_pods'].append(pod.status.pod_ip)
-                        resp = app_client.delete_namespaced_deployment(name=name, namespace=namespace)
                     resp = app_client.create_namespaced_deployment(body=dep, namespace=namespace)
                     print(f"Deployment created. Status='{resp.metadata.name}'")
                 elif dep['kind'] == 'Service':
-                    if service_exists(namespace, name):
-                        resp = core_client.delete_namespaced_service(name=name, namespace=namespace)
                     resp = core_client.create_namespaced_service(body = dep, namespace=namespace)
                     print(f"Service created. Status='{resp.metadata.name}'")
         except client.rest.ApiException as e:
@@ -203,16 +196,9 @@ def launch_client(server_info, client_yaml_path,
                                     shutil.copy2('/h/churongj/ACAI_Emulator/YOLOv3_Train_Inference/content/VOCtrainval_06-Nov-2007.tar', 
                                                     user_path)
 
-                    if deployment_exists(namespace, name):
-                        client_pods = core_client.list_namespaced_pod(namespace, label_selector="app=" + client_info['label']).items
-                        for pod in client_pods:
-                            client_info['existing_pods'].append(pod.status.pod_ip)
-                        resp = app_client.delete_namespaced_deployment(name=name, namespace=namespace)
                     resp = app_client.create_namespaced_deployment(body=dep, namespace=namespace)
                     print(f"Deployment created. Status='{resp.metadata.name}'")
                 elif dep['kind'] == 'Service':
-                    if service_exists(namespace, name):
-                        resp = core_client.delete_namespaced_service(name=name, namespace=namespace)
                     resp = core_client.create_namespaced_service(body = dep, namespace=namespace)
                     print(f"Service created. Status='{resp.metadata.name}'")
         except client.rest.ApiException as e:
@@ -241,6 +227,14 @@ def main(path, containers_names):
     core_client = client.CoreV1Api()
     configuration = client.Configuration()
 
+    resp = core_client.list_namespace()
+    for nsp in resp.items:
+        if namespace == nsp.metadata.name:
+            resp = core_client.delete_namespace(namespace)
+            print("deleting namespace " + namespace)
+            time.sleep(60)
+    os.system("kubectl create namespace " + namespace)
+
     template_yaml_path = 'yaml_templates/config.yaml'
     config_path = 'user_config.json'
     server_yamls, client_yamls, network_yamls = generate_yamls(path, template_yaml_path, config_path, namespace)
@@ -261,6 +255,9 @@ def main(path, containers_names):
             line += ','
         line += '\n'
         f.write(line)
+
+    for network_yaml in network_yamls:
+        os.system("kubectl apply -f " + network_yaml + " -n " + namespace)
 
     while True:
         api = client.CustomObjectsApi()
@@ -285,7 +282,6 @@ def main(path, containers_names):
                 else:
                     sub_dest_folder = dest_folder + '/' + file_name
                     pathlib.Path(sub_dest_folder).mkdir(parents=True, exist_ok=True)
-                    # os.chmod(sub_dest_folder, 0o777)
                     recursive_copy(source + '/', sub_dest_folder)
 
         recursive_copy(source_folder, path)

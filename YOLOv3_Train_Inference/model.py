@@ -471,11 +471,6 @@ class SingleStageDetector(nn.Module):
         # 6. The loss function
         bbox_xywh[:, :, :, :, 2:4] = torch.sqrt(bbox_xywh[:, :, :, :, 2:4])
 
-        # assert bbox_xywh[:, :, :, :, :2].max() <= 0.5
-        # and bbox_xywh[:, :, :, :, :2].min() >= -0.5, 'invalid offsets values'
-        # assert bbox_xywh[:, :, :, :, :2:4].max() <= 1
-        # and bbox_xywh[:, :, :, :, 2:4].min() >= 0, 'invalid offsets values'
-
         offsets = self._extract_bbox_data(bbox_xywh.permute(0, 1, 4, 2, 3), activated_anc_ind)
         cls_scores = self._extract_class_scores(cls_scores, activated_anc_ind)
         anc_per_img = torch.prod(torch.tensor(bbox_xywh.shape[1:-1]))  # use as argument in ObjectClassification

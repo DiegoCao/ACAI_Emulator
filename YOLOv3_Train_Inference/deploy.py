@@ -219,7 +219,7 @@ def launch_client(server_info, client_yaml_path,
 
     return client_info
 
-def main(path, containers_names):
+def main(path, containers_names, config_path):
     config.load_kube_config()
 
     namespace = 'yolo'
@@ -236,7 +236,6 @@ def main(path, containers_names):
     os.system("kubectl create namespace " + namespace)
 
     template_yaml_path = 'yaml_templates/config.yaml'
-    config_path = 'user_config.json'
     server_yamls, client_yamls, network_yamls = generate_yamls(path, template_yaml_path, config_path, namespace)
 
     server_info = launch_server(server_yamls[0], namespace, core_client, app_client)
@@ -289,5 +288,6 @@ def main(path, containers_names):
 
 if __name__ == '__main__':
     path = sys.argv[1]
+    config_path = sys.argv[2]
     containers_names = ['yolo-server']
-    main(path, containers_names)
+    main(path, containers_names, config_path)

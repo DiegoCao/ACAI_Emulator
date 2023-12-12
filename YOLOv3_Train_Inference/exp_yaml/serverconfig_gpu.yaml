@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+  namespace: yolo-test
+  labels:
+    app: yolo-demo-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yolo-demo-server
+  template:
+    metadata:
+      labels:
+        app: yolo-demo-server
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - phortx3
+      containers:
+      - name: yolo-demo-server
+        image: docker.io/churong/yolo:multi-pod-gpu
+        command: ["/bin/sh"]
+        args: ["-c", "python3 /app/cloud_yolo_train_update.py 9876 logs/cloud.log logs/cloud.csv"]
+        resources:
+          requests:
+            memory: "1024Mi"
+            cpu: "20"
+          limits:
+            cpu: "20"
+            nvidia.com/gpu:  1
+        ports:
+        - name: port1
+          containerPort: 9876
+        - name: port2
+          containerPort: 9877
+        - name: port3
+          containerPort: 9878
+      #   volumeMounts:
+      #   - name: log-volume
+      #     mountPath: /app/logs
+      # volumes:
+      # - name: log-volume
+      #   nfs:
+      #     server: basket
+      #     path: /users/churongj/ACAI_Emulator/YOLOv3_Train_Inference/logs
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-service
+  namespace: yolo-test
+spec:
+  selector:
+    app: yolo-demo-server
+  ports:
+  - name: http1
+    protocol: TCP
+    port: 9876
+  - name: http2
+    protocol: TCP
+    port: 9877
+  - name: http3
+    protocol: TCP
+    port: 9878
+  type: LoadBalancer

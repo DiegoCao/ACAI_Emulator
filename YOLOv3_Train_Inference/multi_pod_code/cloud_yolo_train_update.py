@@ -57,7 +57,9 @@ def accept_clients():
 
 def DetectionRetrain(detector, device_type, learning_rate=3e-3,
                      learning_rate_decay=1, num_epochs=20):
+
     if device_type == 'cuda':
+        # ship model to GPU
         detector.to(**to_float_cuda)
 
     # optimizer setup
@@ -76,6 +78,7 @@ def DetectionRetrain(detector, device_type, learning_rate=3e-3,
         while not incorrect_img_buf:
         # while len(incorrect_img_buf) < 2:
             img_buf_cond.wait()
+        # TODO: IF DEEPCOPY NEEDED?
         clients_lock.acquire()
         retrain_data_batches = incorrect_img_buf
         incorrect_img_buf = []
@@ -86,7 +89,7 @@ def DetectionRetrain(detector, device_type, learning_rate=3e-3,
 
         logger_log.info("INFO: Retrain using " + str(len(retrain_data_batches) *
                                                      retrain_data_batches[0][0].size(dim=0)) + " incorrect images")
-        # Timestamp 1
+        # TODO: Timestamp
         cloud_timestamps = [str(time.perf_counter())]
 
         retrain_start_time = time.perf_counter()
@@ -97,7 +100,7 @@ def DetectionRetrain(detector, device_type, learning_rate=3e-3,
 
                 images, boxes, w_batch, h_batch, _ = cur_batch
                 resized_boxes = coord_trans(boxes, w_batch, h_batch, mode='p2a')
-                if device_type == 'cuda':
+                if device == 'gpu':
                     images = images.to(**to_float_cuda)
                     resized_boxes = resized_boxes.to(**to_float_cuda)
 
@@ -116,13 +119,13 @@ def DetectionRetrain(detector, device_type, learning_rate=3e-3,
 
         retrain_time = time.perf_counter() - retrain_start_time
         logger_log.info(f"METRIC: Cloud model refine takes: {retrain_time:.6f} seconds")
-        # Timestamp 2
+        # TODO: Timestamp
         cloud_timestamps.append(str(time.perf_counter()))
 
         retrain_counter += 1
         torch.save(yoloDetector.state_dict(), updated_model_path)
         logger_log.info("INFO: Model saved in " + updated_model_path)
-        # Timestamp 3
+        # TODO: Timestamp
         cloud_timestamps.append(str(time.perf_counter()))
 
         logger_log.info("INFO: Cloud starts sending model to edge")
@@ -161,14 +164,9 @@ if __name__ == "__main__":
     lr_decay = 0.8
     retrain_num_epochs = 1
     retrain_batch_size = 10
+    # options: ['cpu', 'gpu']
+    device = 'cpu'
     updated_model_path = 'models/yolo_updated_detector.pt'
-    # options: ['cpu', 'cuda']
-    cloud_device = 'cpu'
-    if torch.cuda.is_available():
-        cloud_device = 'cuda'
-        logger_log.info("INFO: Server using GPU to retrain model")
-    else:
-        logger_log.info("INFO: Server using CPU to retrain model")
 
     # define the server socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -178,8 +176,8 @@ if __name__ == "__main__":
     server_socket.listen(5)
 
     # load pretrained model
-    yoloDetector = SingleStageDetector(cloud_device)
-    yoloDetector.load_state_dict(torch.load('models/yolo_detector.pt', map_location=torch.device(cloud_device)))
+    yoloDetector = SingleStageDetector()
+    yoloDetector.load_state_dict(torch.load('models/yolo_detector.pt', map_location=torch.device('cpu')))
     logger_log.info("INFO: Model Loaded")
 
     init_time = time.perf_counter() - init_start_time
@@ -193,4 +191,4 @@ if __name__ == "__main__":
     accept_thread.start()
 
     # start listen to the edge, retrain and send back updated model as necessary
-    DetectionRetrain(yoloDetector, cloud_device, learning_rate=lr, num_epochs=retrain_num_epochs)
+    DetectionRetrain(yoloDetector, learning_rate=lr, num_epochs=retrain_num_epochs, device_type=device)

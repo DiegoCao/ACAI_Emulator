@@ -60,7 +60,7 @@ class FeatureExtractor(nn.Module):
         return feat
 
 
-def GenerateGrid(batch_size, w_amap=7, h_amap=7, dtype=torch.float32, device='cpu'):
+def GenerateGrid(batch_size, device, w_amap=7, h_amap=7, dtype=torch.float32):
     """
     Return a grid cell given a batch size (center coordinates).
 
@@ -411,9 +411,10 @@ def ObjectClassification(class_prob, GT_class, batch_size, anc_per_img, activate
 
 
 class SingleStageDetector(nn.Module):
-    def __init__(self):
+    def __init__(self, device):
         super().__init__()
 
+        self.device = device
         self.feat_extractor = FeatureExtractor()
         self.num_classes = 20
         self.num_bboxes = 2
@@ -442,7 +443,7 @@ class SingleStageDetector(nn.Module):
         features = self.feat_extractor(images)
 
         # 2. Grid generator
-        grid_list = GenerateGrid(images.shape[0])
+        grid_list = GenerateGrid(images.shape[0], self.device)
 
         # 3. Prediction Network
         bbox_xywh, conf_scores, cls_scores = self.pred_network(features)
@@ -470,11 +471,6 @@ class SingleStageDetector(nn.Module):
 
         # 6. The loss function
         bbox_xywh[:, :, :, :, 2:4] = torch.sqrt(bbox_xywh[:, :, :, :, 2:4])
-
-        # assert bbox_xywh[:, :, :, :, :2].max() <= 0.5
-        # and bbox_xywh[:, :, :, :, :2].min() >= -0.5, 'invalid offsets values'
-        # assert bbox_xywh[:, :, :, :, :2:4].max() <= 1
-        # and bbox_xywh[:, :, :, :, 2:4].min() >= 0, 'invalid offsets values'
 
         offsets = self._extract_bbox_data(bbox_xywh.permute(0, 1, 4, 2, 3), activated_anc_ind)
         cls_scores = self._extract_class_scores(cls_scores, activated_anc_ind)
@@ -525,7 +521,7 @@ class SingleStageDetector(nn.Module):
             features = self.feat_extractor(images)
 
             # Grid  Generator
-            grid_list = GenerateGrid(images.shape[0])
+            grid_list = GenerateGrid(images.shape[0], self.device)
 
             # Prediction Network
             offsets, conf_scores, class_scores = self.pred_network(features)
@@ -539,7 +535,7 @@ class SingleStageDetector(nn.Module):
 
             # Proposal generator
             proposals = GenerateProposal(grid_list, offsets).reshape(B, -1, 4)  # Bx(AxH'xW')x4
-            # proposals = GenerateProposal(grid_list, offsets).reshape(B, -1, 4) # Bx(AxH'xW')x4
+
             # Thresholding and NMS
             for i in range(B):
                 score_mask = torch.nonzero((conf_scores[i] > thresh)).squeeze(1)  # (AxH'xW')

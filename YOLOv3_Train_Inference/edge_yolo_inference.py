@@ -14,6 +14,9 @@ import sys
 import time
 from collections import deque
 from threading import Thread, Condition
+
+import torch.cuda
+
 from model import *
 from dataset import *
 from logger import setup_logger
@@ -69,7 +72,7 @@ def prepare_send_samples():
 
 def update_model():
     update_start_time = time.perf_counter()
-    # TODO: Timestamp
+    # Timestamp 1
     update_timestamps = [str(update_start_time)]
     global new_detector, wait_model_update, receive_model_update
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -80,24 +83,24 @@ def update_model():
     else:
         s.connect((host, int(port)))
     logger_update.info("CONNECT SUCCESS")
-    # TODO: Timestamp
+    # Timestamp 2
     update_timestamps.append(str(time.perf_counter()))
     send_samples = prepare_send_samples()
     bytes_send = tensorToMessage(send_samples)
     logger_update.info("INFO: Start sending images and annotations")
-    # TODO: Timestamp
+    # Timestamp 3
     update_timestamps.append(str(time.perf_counter()))
     s.sendall(bytes_send)  # send all bytes
     logger_update.info("INFO: Images and annotations sent to cloud")
-    # TODO: Timestamp
+    # Timestamp 4
     update_timestamps.append(str(time.perf_counter()))
     receive_weights(s, model_updated_path)
-    # TODO: Timestamp
+    # Timestamp 5
     update_timestamps.append(str(time.perf_counter()))
-    new_detector = SingleStageDetector()
-    new_detector.load_state_dict(torch.load(model_updated_path, map_location=torch.device('cpu')))
+    new_detector = SingleStageDetector(edge_device)
+    new_detector.load_state_dict(torch.load(model_updated_path, map_location=torch.device(edge_device)))
     logger_update.info("INFO: Update model at edge!")
-    # TODO: Timestamp
+    # Timestamp 6
     update_timestamps.append(str(time.perf_counter()))
     update_elapsed_time = time.perf_counter() - update_start_time
     logger_update.info(f"METRIC: Model update with cloud takes: {update_elapsed_time:.6f} seconds")
@@ -128,8 +131,12 @@ def get_accuracy(detector):
             torch.clamp_(final_proposals[idx][:, 0::2], min=0, max=w_batch[idx])
             torch.clamp_(final_proposals[idx][:, 1::2], min=0, max=h_batch[idx])
             valid_box = sum([1 if j != -1 else 0 for j in boxes[idx][:, 0]])
+            # final_all = torch.cat((final_proposals[idx],
+            #                        final_class[idx].float(), final_conf_scores[idx]), dim=-1).cpu()
             final_all = torch.cat((final_proposals[idx],
-                                   final_class[idx].float(), final_conf_scores[idx]), dim=-1).cpu()
+                                   final_class[idx].float(), final_conf_scores[idx]), dim=-1)
+            if edge_device == 'cpu':
+                final_all = final_all.cpu()
             resized_proposals = coord_trans(final_all, w_batch[idx], h_batch[idx])
 
             # check if the predictions are incorrect
@@ -174,8 +181,8 @@ def inference():
     inference_loader = get_data_loader(batch_size)
 
     # load pre-trained model
-    detector = SingleStageDetector()
-    detector.load_state_dict(torch.load(model_pretrained_path, map_location=torch.device('cpu')))
+    detector = SingleStageDetector(edge_device)
+    detector.load_state_dict(torch.load(model_pretrained_path, map_location=torch.device(edge_device)))
     detector.eval()
 
     logger_update.info(f"INFO: Init model accuracy is [{get_accuracy(detector)[0]: .6f}]")
@@ -228,8 +235,12 @@ def inference():
                 torch.clamp_(final_proposals[idx][:, 0::2], min=0, max=w_batch[idx])
                 torch.clamp_(final_proposals[idx][:, 1::2], min=0, max=h_batch[idx])
                 valid_box = sum([1 if j != -1 else 0 for j in boxes[idx][:, 0]])
+                # final_all = torch.cat((final_proposals[idx],
+                #                        final_class[idx].float(), final_conf_scores[idx]), dim=-1).cpu()
                 final_all = torch.cat((final_proposals[idx],
-                                       final_class[idx].float(), final_conf_scores[idx]), dim=-1).cpu()
+                                       final_class[idx].float(), final_conf_scores[idx]), dim=-1)
+                if edge_device == 'cpu':
+                    final_all = final_all.cpu()
                 resized_proposals = coord_trans(final_all, w_batch[idx], h_batch[idx])
 
                 # write results to file for evaluation (use mAP API https://github.com/Cartucho/mAP for now...)
@@ -254,7 +265,6 @@ def inference():
                 req_wait_time += (time.perf_counter() - cur_img_req_time)
                 if cur_img_cnt == inf_latency_img_thresh:
                     logger_inf.info("--------------------------------------------")
-                    # TODO: Timestamp
                     avg_inf_time = total_inf_time / inf_latency_img_thresh
                     avg_wait_time = req_wait_time / inf_latency_img_thresh
                     avg_queue_len = queue_length / inf_latency_img_thresh
@@ -346,6 +356,15 @@ if __name__ == "__main__":
         os.mkdir(input_path)
     det_dir = os.path.join(mAP_root, "input/detection-results")
     gt_dir = os.path.join(mAP_root, "input/ground-truth")
+
+    # only supports cpu on edge side
+    edge_device = 'cpu'
+    logger_inf.info("INFO: Client using CPU to inference")
+    # if torch.cuda.is_available():
+    #     edge_device = 'cuda'
+    #     logger_inf.info("INFO: Client using GPU to inference")
+    # else:
+    #     logger_inf.info("INFO: Client using CPU to inference")
 
     model_pretrained_path = os.path.join(model_root, "yolo_pretrained_detector_0.01cat_2500.pt")
     model_updated_path = os.path.join(model_root, "yolo_updated_edge_detector.pt")

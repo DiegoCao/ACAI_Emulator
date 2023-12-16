@@ -1,6 +1,6 @@
 # Emulator_App
 
-The project of cloud-edge emulator and the sample workload: a video surveillance application based on YOLOv3 model. Major contents (application itself and experiment launcher) resides in `/YOLOv3_Train_Inference` folder. The system is designed as:
+The project of cloud-edge emulator and the sample workload: a video surveillance application based on YOLOv3 model. Major contents (application itself and experiment launcher) reside in `/YOLOv3_Train_Inference` folder. The system is designed as:
 
 ![sys-design](./imgs/sys-design.png)
 
@@ -39,13 +39,28 @@ And the multi-pod (one cloud and multi edges) application implementation is (edg
 ## Application Arguments
 1. Cloud program arguments
 
-Sample cmd: `python3 /app/cloud_yolo_train_update.py 9876 logs/cloud.log logs/cloud.csv`\
-Interpretation: `python3 [program loc] [cloud port] [cloud log output path] [cloud timestamp csv output path]`
+Sample cmd: 
+```
+python3 /app/cloud_yolo_train_update.py 9876 logs/cloud.log logs/cloud.csv
+```
+
+Interpretation: 
+```
+python3 [program loc] [cloud port] [cloud log output path] [cloud timestamp csv output path]
+```
 
 2. Edge program arguments
 
-Sample cmd: `python3 /app/edge_yolo_inference.py 110.13.203.03 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 1 0`\
-Interpretation: `python3 [program loc] [cloud ip] [cloud port] edge_inf.log edge_update.log edge_inf.csv edge_update.csv [request per sec] [edge id]`\
+Sample cmd: 
+```
+python3 /app/edge_yolo_inference.py 110.13.203.03 9876 edge_inf.log edge_update.log edge_inf.csv edge_update.csv 1 0
+```
+
+Interpretation: 
+```
+python3 [program loc] [cloud ip] [cloud port] edge_inf.log edge_update.log edge_inf.csv edge_update.csv [request per sec] [edge id]
+```
+
 > Note:
 >> i) if testing locally, please set `[cloud ip]` as `local`;\
 >> ii) log and csv arguments are fixed in the edge program which will be directed to `logs/[edge id]` folder

@@ -1,4 +1,4 @@
-# Emulator_App
+# Cloud Edge App Emulator Using Kubernetes
 
 The project of cloud-edge emulator and the sample workload: a video surveillance application based on YOLOv3 model. Major contents (application itself and experiment launcher) reside in `/YOLOv3_Train_Inference` folder. The system is designed as:
 
